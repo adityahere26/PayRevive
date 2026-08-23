@@ -1,0 +1,34 @@
+{
+  "name": "payrevive-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "payrevive backend, evaluation engine, and test suite (Node.js/Express/Mongoose). Frontend lives in /client with its own package.json.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch server/server.js",
+    "start": "node server/server.js",
+    "test": "node --test 'tests/*.test.js'",
+    "client:dev": "npm --prefix client run dev",
+    "client:install": "npm --prefix client install"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.6.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.0.0"
+  },
+  "allowScripts": {
+    "mongodb-memory-server@10.4.3": true
+  }
+}
