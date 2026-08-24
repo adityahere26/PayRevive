@@ -25,3 +25,20 @@ export const demoAuthRateLimiter = createRateLimiter({
   max: 20,
   message: "Too many demo login attempts. Please try again later.",
 });
+
+// SECURITY.md § Rate limiting table doesn't name this route directly (it's a Day 3 addition),
+// but it creates payment/customer/recovery-case records same as any state-changing route the
+// table does cover — generous but present, consistent with the table's own rationale.
+export const paymentFailureRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: "Too many simulated payment failures. Please try again later.",
+});
+
+// Analogous to SECURITY.md's `/execute` entry ("prevents unlimited recovery-action
+// triggering") — /evaluate and /simulate-action are this phase's equivalent of that route.
+export const recoveryCaseActionRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: "Too many recovery-case action requests. Please try again later.",
+});

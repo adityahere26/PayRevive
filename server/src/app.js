@@ -12,6 +12,9 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { notFound } from "./middleware/notFound.js";
 import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
+import { demoRouter } from "./routes/demo.js";
+import { recoveryCasesRouter } from "./routes/recoveryCases.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 
 export function createApp() {
   const app = express();
@@ -31,6 +34,9 @@ export function createApp() {
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/demo", demoRouter);
+  app.use("/api/recovery-cases", recoveryCasesRouter);
+  app.use("/api/dashboard", dashboardRouter);
 
   app.use(notFound);
   app.use(errorHandler);

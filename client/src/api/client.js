@@ -65,4 +65,18 @@ export const api = {
   health: () => request("/health"),
   authDemo: () => request("/auth/demo", { method: "POST" }),
   me: () => request("/auth/me"),
+
+  dashboardSummary: () => request("/dashboard/summary"),
+
+  simulatePaymentFailure: (payload) =>
+    request("/demo/payment-failure", { method: "POST", body: payload }),
+
+  listRecoveryCases: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/recovery-cases${query ? `?${query}` : ""}`);
+  },
+  getRecoveryCase: (id) => request(`/recovery-cases/${id}`),
+  getRecoveryCaseAudit: (id) => request(`/recovery-cases/${id}/audit`),
+  evaluateRecoveryCase: (id) => request(`/recovery-cases/${id}/evaluate`, { method: "POST" }),
+  simulateRecoveryAction: (id) => request(`/recovery-cases/${id}/simulate-action`, { method: "POST" }),
 };

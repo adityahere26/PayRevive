@@ -35,3 +35,9 @@ export class RateLimitedError extends ApiError {
     super(429, "RATE_LIMITED", message);
   }
 }
+
+export class ConflictError extends ApiError {
+  constructor(message = "Request conflicts with the resource's current state") {
+    super(409, "CONFLICT", message);
+  }
+}
