@@ -15,6 +15,7 @@ import { authRouter } from "./routes/auth.js";
 import { demoRouter } from "./routes/demo.js";
 import { recoveryCasesRouter } from "./routes/recoveryCases.js";
 import { dashboardRouter } from "./routes/dashboard.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 
 export function createApp() {
   const app = express();
@@ -29,8 +30,15 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: "100kb" }));
   app.use(requestContext);
+
+  // Mounted BEFORE express.json(): Razorpay webhook signature verification requires the
+  // untouched raw request body (SECURITY.md § Webhook security) — routes/webhooks.js brings
+  // its own express.raw() middleware scoped to this one path, so every other route still gets
+  // normal JSON parsing below, unaffected.
+  app.use("/api/webhooks", webhooksRouter);
+
+  app.use(express.json({ limit: "100kb" }));
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);

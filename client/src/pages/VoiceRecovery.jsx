@@ -456,6 +456,21 @@ export default function VoiceRecovery() {
                   label="Result"
                   value={lastTurn.action.success === null ? lastTurn.action.outcome : lastTurn.action.success ? "SUCCESS" : "FAILURE"}
                 />
+                {lastTurn.paymentLink?.shortUrl && (
+                  <Field
+                    label="Razorpay Payment Link (Test Mode)"
+                    value={
+                      <a
+                        href={lastTurn.paymentLink.shortUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-900 underline hover:no-underline"
+                      >
+                        {lastTurn.paymentLink.shortUrl}
+                      </a>
+                    }
+                  />
+                )}
               </dl>
             )}
           </div>

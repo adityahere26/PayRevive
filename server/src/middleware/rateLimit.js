@@ -57,3 +57,12 @@ export const voiceTurnRateLimiter = createRateLimiter({
   max: 120,
   message: "Too many voice interactions. Please try again later.",
 });
+
+// SECURITY.md § Rate limiting table's `/api/webhooks/razorpay` entry: "generous but present, to
+// absorb retries without abuse." Razorpay itself retries failed deliveries with exponential
+// backoff for up to 24 hours, so this must never be tight enough to reject a legitimate retry.
+export const razorpayWebhookRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: "Too many webhook requests.",
+});

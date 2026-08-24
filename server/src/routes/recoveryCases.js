@@ -8,13 +8,14 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { requireMerchantOwnership } from "../middleware/authorize.js";
 import { recoveryCaseActionRateLimiter } from "../middleware/rateLimit.js";
-import { ConflictError, NotFoundError } from "../lib/errors.js";
+import { ApiError, ConflictError, NotFoundError } from "../lib/errors.js";
 import { RecoveryCase, RecoveryAction, Merchant, Customer, Payment, AuditLog } from "../models/index.js";
 import { runEvaluationPipeline } from "../pipeline/orchestrator.js";
 import { executeAction } from "../pipeline/actionExecutor.js";
-import { getCustomerHistory } from "../pipeline/tools.js";
+import { getCustomerHistory, createLivePaymentLink } from "../pipeline/tools.js";
 import { writeAuditLog, writeAuditLogs } from "../audit/auditLogger.js";
 import { mulberry32, seedFromString } from "../lib/prng.js";
+import { isRazorpayConfigured } from "../integrations/razorpay/client.js";
 import { voiceRouter } from "./voice.js";
 
 export const recoveryCasesRouter = Router();
@@ -169,6 +170,134 @@ recoveryCasesRouter.post(
       });
 
       res.status(200).json({ recoveryCase, action: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Day 6 — Razorpay Test Mode Payment Link. ARCHITECTURE.md's documented (not-yet-built) route.
+// Distinct from /simulate-action: this makes a real Razorpay Test Mode API call. The Payment
+// Link safety checklist (RECOVERY_POLICY.md) runs in order below, as defense-in-depth on top of
+// the Policy Engine's own earlier APPROVE — never a substitute for it.
+recoveryCasesRouter.post(
+  "/:id/payment-link",
+  recoveryCaseActionRateLimiter,
+  requireMerchantOwnership(RecoveryCase),
+  async (req, res, next) => {
+    try {
+      const recoveryCase = req.resource;
+
+      // Checklist 3: not already RECOVERED.
+      if (recoveryCase.status === "RECOVERED") {
+        next(new ConflictError("This recovery case has already been recovered"));
+        return;
+      }
+
+      // Checklist 4: idempotent reuse — a retry/double-click/refresh must never create a
+      // second link for the same case.
+      if (recoveryCase.razorpayPaymentLinkId) {
+        res.status(200).json({
+          recoveryCase,
+          paymentLink: {
+            id: recoveryCase.razorpayPaymentLinkId,
+            shortUrl: recoveryCase.razorpayPaymentLinkShortUrl,
+          },
+          reused: true,
+        });
+        return;
+      }
+
+      // Checklist 5: Policy Engine has already resolved to APPROVE for CREATE_PAYMENT_LINK.
+      if (recoveryCase.status !== "POLICY_APPROVED" || recoveryCase.selectedIntervention !== "CREATE_PAYMENT_LINK") {
+        next(
+          new ConflictError(
+            `Recovery case is not approved for a payment link (status: ${recoveryCase.status}, intervention: ${recoveryCase.selectedIntervention})`
+          )
+        );
+        return;
+      }
+
+      if (!isRazorpayConfigured()) {
+        next(new ConflictError("Razorpay Test Mode is not configured on this server"));
+        return;
+      }
+
+      const [merchant, customer] = await Promise.all([
+        Merchant.findById(req.merchant.id),
+        Customer.findOne({ _id: recoveryCase.customerId, merchantId: req.merchant.id }),
+      ]);
+      if (!merchant || !customer) {
+        next(new NotFoundError("Resource not found"));
+        return;
+      }
+
+      // Checklist 7/8: re-check window/attempts defensively, on top of the Policy Engine's
+      // own gate (time may have passed since /evaluate ran).
+      if (Date.now() > new Date(recoveryCase.recoveryWindowExpiresAt).getTime()) {
+        next(new ConflictError("Recovery window has expired for this case"));
+        return;
+      }
+      if (recoveryCase.attempts >= merchant.policy.maxRecoveryAttempts) {
+        next(new ConflictError("Recovery attempt limit reached for this case"));
+        return;
+      }
+
+      // Checklist 6 (amount is always the case's own stored value, never client-supplied) and
+      // the atomic claim + Razorpay call happen inside this one shared function — the exact
+      // same function routes/voice.js calls, so there is only one Razorpay-executing path.
+      const outcome = await createLivePaymentLink({ recoveryCase, merchantId: req.merchant.id, customer });
+
+      if (!outcome.ok) {
+        if (outcome.code === "CLAIM_CONFLICT") {
+          next(new ConflictError("Payment link creation is already in progress for this case. Please retry shortly."));
+          return;
+        }
+        await writeAuditLog({
+          merchantId: req.merchant.id,
+          caseId: recoveryCase._id,
+          actor: "SYSTEM",
+          eventType: "PAYMENT_LINK_CREATION_FAILED",
+          reason: "RAZORPAY_REQUEST_FAILED",
+          result: recoveryCase.status,
+          metadata: { razorpayStatus: outcome.error?.status || null },
+        });
+        next(new ApiError(502, "RAZORPAY_UNAVAILABLE", "Could not create a payment link right now. Please try again."));
+        return;
+      }
+
+      if (outcome.reused) {
+        res.status(200).json({ recoveryCase: outcome.recoveryCase, paymentLink: outcome.link, reused: true });
+        return;
+      }
+
+      await outcome.recoveryCase.save();
+
+      await RecoveryAction.create({
+        caseId: outcome.recoveryCase._id,
+        merchantId: req.merchant.id,
+        actionType: "CREATE_PAYMENT_LINK",
+        status: "LIVE_TEST_MODE",
+        result: outcome.result?.outcome ?? outcome.recoveryCase.status,
+        metadata: {
+          live: true,
+          razorpayPaymentLinkId: outcome.link.id,
+          razorpayPaymentLinkShortUrl: outcome.link.shortUrl,
+          razorpayStatus: outcome.link.status,
+        },
+      });
+
+      await writeAuditLog({
+        merchantId: req.merchant.id,
+        caseId: outcome.recoveryCase._id,
+        actor: "SYSTEM",
+        eventType: "PAYMENT_LINK_CREATED",
+        reason: "CREATE_PAYMENT_LINK",
+        result: outcome.recoveryCase.status,
+        metadata: { razorpayPaymentLinkId: outcome.link.id, live: true },
+      });
+
+      res.status(201).json({ recoveryCase: outcome.recoveryCase, paymentLink: outcome.link });
     } catch (err) {
       next(err);
     }

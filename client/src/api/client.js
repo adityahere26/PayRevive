@@ -79,6 +79,9 @@ export const api = {
   getRecoveryCaseAudit: (id) => request(`/recovery-cases/${id}/audit`),
   evaluateRecoveryCase: (id) => request(`/recovery-cases/${id}/evaluate`, { method: "POST" }),
   simulateRecoveryAction: (id) => request(`/recovery-cases/${id}/simulate-action`, { method: "POST" }),
+  // Day 6 — real Razorpay Test Mode Payment Link, distinct from simulateRecoveryAction above.
+  // Never sends any Razorpay credential — the browser never has one to send.
+  createPaymentLink: (id) => request(`/recovery-cases/${id}/payment-link`, { method: "POST" }),
 
   // AGENT_DESIGN.md § Voice pipeline. Every call here goes to the payrevive backend, never
   // directly to Gemini — the browser never sees any Gemini credential (SECURITY.md § Gemini /

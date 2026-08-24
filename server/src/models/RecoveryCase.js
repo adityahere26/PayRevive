@@ -69,6 +69,16 @@ const recoveryCaseSchema = new Schema(
     voiceAttempts: { type: Number, default: 0, min: 0 },
     recoveredAmount: { type: Number, default: 0, min: 0 },
     recoveryWindowExpiresAt: { type: Date, required: true },
+    // Day 6 — Razorpay Test Mode Payment Links. Safe identifiers only (never a credential).
+    // razorpayPaymentLinkId doubles as the idempotency check in the Payment Link safety
+    // checklist (RECOVERY_POLICY.md): once set, a retry/double-click reuses this link instead
+    // of creating a second one.
+    razorpayPaymentLinkId: { type: String, default: null },
+    razorpayPaymentLinkShortUrl: { type: String, default: null },
+    // Self-healing claim for atomic payment-link creation (see pipeline/tools.js
+    // claimPaymentLinkCreation). A stale claim (older than the TTL) is automatically
+    // reclaimable, so a crashed request can never permanently lock a case.
+    razorpayLinkClaimedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

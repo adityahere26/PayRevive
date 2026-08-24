@@ -36,6 +36,8 @@ export default function RecoveryCaseDetail() {
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [paymentLinkError, setPaymentLinkError] = useState(null);
+  const [paymentLinkBusy, setPaymentLinkBusy] = useState(false);
 
   function load() {
     setError(null);
@@ -78,6 +80,21 @@ export default function RecoveryCaseDetail() {
     }
   }
 
+  // Day 6 — real Razorpay Test Mode Payment Link, kept as a SEPARATE control from "Simulate
+  // Action" above so it's never ambiguous which one made a live external API call.
+  async function handleCreatePaymentLink() {
+    setPaymentLinkBusy(true);
+    setPaymentLinkError(null);
+    try {
+      await api.createPaymentLink(id);
+      load();
+    } catch (err) {
+      setPaymentLinkError(err.message);
+    } finally {
+      setPaymentLinkBusy(false);
+    }
+  }
+
   if (error) {
     return <p className="text-sm text-red-600">Could not load this recovery case: {error}</p>;
   }
@@ -112,6 +129,21 @@ export default function RecoveryCaseDetail() {
           <Field label="Selected Intervention" value={recoveryCase.selectedIntervention} />
           <Field label="Attempts" value={`${recoveryCase.attempts}`} />
           <Field label="Recovered Amount" value={formatINR(recoveryCase.recoveredAmount)} />
+          {recoveryCase.razorpayPaymentLinkShortUrl && (
+            <Field
+              label="Razorpay Payment Link (Test Mode)"
+              value={
+                <a
+                  href={recoveryCase.razorpayPaymentLinkShortUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-slate-900 underline hover:no-underline"
+                >
+                  {recoveryCase.razorpayPaymentLinkShortUrl}
+                </a>
+              }
+            />
+          )}
         </dl>
         {recoveryCase.reasonCodes?.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1">
@@ -137,9 +169,21 @@ export default function RecoveryCaseDetail() {
             onClick={handleSimulateAction}
             disabled={busy || !canSimulateAction}
             className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            title="No real Razorpay call — resolves the outcome with a seeded RNG"
           >
             {busy ? "Working…" : "Simulate Action"}
           </button>
+          {canSimulateAction && recoveryCase.selectedIntervention === "CREATE_PAYMENT_LINK" && (
+            <button
+              type="button"
+              onClick={handleCreatePaymentLink}
+              disabled={paymentLinkBusy || !canSimulateAction}
+              className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+              title="Makes a real Razorpay Test Mode API call"
+            >
+              {paymentLinkBusy ? "Creating…" : "Create Payment Link — Razorpay Test Mode"}
+            </button>
+          )}
           {canStartVoice && (
             <Link
               to={`/voice-recovery/${recoveryCase._id}`}
@@ -154,6 +198,7 @@ export default function RecoveryCaseDetail() {
             </span>
           )}
           {actionError && <span className="text-xs text-red-600">{actionError}</span>}
+          {paymentLinkError && <span className="text-xs text-red-600">{paymentLinkError}</span>}
         </div>
       </div>
 

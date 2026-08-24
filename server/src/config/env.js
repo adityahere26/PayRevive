@@ -22,6 +22,20 @@ const OPTIONAL_FOR_NOW = [
   "RAZORPAY_WEBHOOK_SECRET",
 ];
 
+// Day 6 § Test Mode enforcement — "Add configuration validation that makes accidental live
+// credentials difficult/impossible." Razorpay's own key-id convention prefixes every key with
+// rzp_test_ (Test Mode) or rzp_live_ (Live Mode) — verified against current Razorpay docs. This
+// build never uses Live Mode, so a configured key that isn't test-mode-shaped is a hard startup
+// failure, not a warning — the same "fail fast and loudly" posture as a missing required var.
+function assertRazorpayTestMode(keyId) {
+  if (keyId && !keyId.startsWith("rzp_test_")) {
+    throw new Error(
+      "RAZORPAY_KEY_ID is not a Test Mode key (must start with rzp_test_). Live Razorpay " +
+        "credentials are not permitted in this build — see CLAUDE.md § Test Mode Only."
+    );
+  }
+}
+
 function loadEnv() {
   const missing = REQUIRED.filter((key) => !process.env[key]);
   if (missing.length > 0) {
@@ -30,6 +44,8 @@ function loadEnv() {
         "Copy .env.example to .env and fill them in."
     );
   }
+
+  assertRazorpayTestMode(process.env.RAZORPAY_KEY_ID);
 
   const missingOptional = OPTIONAL_FOR_NOW.filter((key) => !process.env[key]);
   if (missingOptional.length > 0 && process.env.NODE_ENV !== "test") {

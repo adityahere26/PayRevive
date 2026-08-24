@@ -1,24 +1,32 @@
 // AGENT_DESIGN.md § The ten modules, module 7 — Action Executor. "The only module with
-// Razorpay credentials and MongoDB write access." In this phase there IS no Razorpay
-// credential anywhere in this file or its callers — CLAUDE.md Day 3 scope explicitly
-// forbids real Razorpay calls, so every branch below returns a `{status: "SIMULATED", ...}`
-// result and nothing here can reach a network call even by accident (no razorpay import
-// exists in this module).
+// Razorpay credentials and MongoDB write access." Through Day 5, there was no Razorpay
+// credential anywhere in this file or its callers — every branch returned a
+// `{status: "SIMULATED", ...}` result resolved via the seeded PRNG (lib/prng.js), not
+// Math.random(), matching EVALUATION.md's simulated outcome engine's approach at single-case
+// scale. That simulated path is UNCHANGED as of Day 6 (CLAUDE.md § Day 6 requirement 1) — every
+// existing caller (evaluation, /simulate-action, voice without live Razorpay configured) omits
+// the new `live` param and gets byte-identical behavior.
 //
-// Outcomes are resolved with the seeded PRNG (lib/prng.js) against the case's own
-// recoveryProbability, not Math.random() — deterministic and reproducible per case/attempt,
-// matching EVALUATION.md's simulated outcome engine's approach at single-case scale.
+// Day 6 adds exactly one new branch: when `live: true` is passed for CREATE_PAYMENT_LINK, the
+// case moves to WAITING_OUTCOME but its outcome is left unresolved — a real Razorpay Test Mode
+// payment link has already been created by the caller (pipeline/tools.js's
+// createLivePaymentLink, which itself calls integrations/razorpay/), and the true outcome is
+// only known once routes/webhooks.js verifies a payment_link.paid/expired/cancelled event
+// (pipeline/outcomeEvaluator.js). This executor never fabricates a live success/failure —
+// RECOVERY_POLICY.md § Failure safety.
 
 import { transition } from "./transition.js";
 
 /**
  * Requires recoveryCase.status === "POLICY_APPROVED" (checked by the caller/route). Mutates
- * and transitions recoveryCase; does not persist it.
+ * and transitions recoveryCase; does not persist it. Does not call Razorpay itself — for the
+ * live path, the caller has already created the payment link and sets
+ * recoveryCase.razorpayPaymentLinkId/razorpayPaymentLinkShortUrl before calling this.
  *
- * @param {{recoveryCase: object, action: string, rng: () => number}} args
- * @returns {{status: "SIMULATED", action: string, success: boolean|null, outcome: string}}
+ * @param {{recoveryCase: object, action: string, rng?: () => number, live?: boolean}} args
+ * @returns {{status: "SIMULATED"|"LIVE_TEST_MODE", action: string, success: boolean|null, outcome: string}}
  */
-export function executeAction({ recoveryCase, action, rng }) {
+export function executeAction({ recoveryCase, action, rng, live = false }) {
   transition(recoveryCase, "ACTION_EXECUTED");
 
   if (action === "STOP") {
@@ -34,6 +42,12 @@ export function executeAction({ recoveryCase, action, rng }) {
   if (action === "CREATE_PAYMENT_LINK") {
     transition(recoveryCase, "WAITING_OUTCOME");
     recoveryCase.attempts += 1;
+
+    if (live) {
+      // Real Razorpay Test Mode link already exists (caller's responsibility) — the outcome
+      // is unknown until a verified webhook resolves it. recoveredAmount is NEVER set here.
+      return { status: "LIVE_TEST_MODE", action, success: null, outcome: recoveryCase.status };
+    }
 
     const success = rng() < (recoveryCase.recoveryProbability ?? 0.5);
     if (success) {

@@ -20,8 +20,9 @@ import { getAIProvider } from "../ai/provider.js";
 import { mapVoiceIntentToCandidateAction } from "../pipeline/voiceIntentMapper.js";
 import { runVoiceDecisionPipeline } from "../pipeline/orchestrator.js";
 import { executeAction } from "../pipeline/actionExecutor.js";
-import { getCustomerHistory } from "../pipeline/tools.js";
+import { getCustomerHistory, createLivePaymentLink } from "../pipeline/tools.js";
 import { mulberry32, seedFromString } from "../lib/prng.js";
+import { isRazorpayConfigured } from "../integrations/razorpay/client.js";
 
 export const voiceRouter = Router({ mergeParams: true });
 
@@ -122,7 +123,10 @@ const voiceTurnSchema = {
 // browser's SpeechSynthesis call) — see client/src/pages/VoiceRecovery.jsx.
 voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), async (req, res, next) => {
   try {
-    const recoveryCase = req.resource;
+    // let, not const: the live Razorpay path (below) reassigns this to the document returned
+    // by the atomic claim, which reflects the WAITING_OUTCOME/link-field mutations the
+    // original in-memory object doesn't have.
+    let recoveryCase = req.resource;
     const { sessionId, transcript } = req.body;
 
     if (TERMINAL_STATUSES.includes(recoveryCase.status)) {
@@ -173,6 +177,7 @@ voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), a
 
     let policyResult = null;
     let executedAction = null;
+    let paymentLink = null;
     let voiceResponse;
 
     if (!candidateAction) {
@@ -191,9 +196,66 @@ voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), a
       auditEntries.push(...pipelineResult.auditEntries.map((entry) => ({ actor: "SYSTEM", ...entry })));
       policyResult = pipelineResult.policyResult;
 
-      if (recoveryCase.status === "POLICY_APPROVED") {
+      if (
+        recoveryCase.status === "POLICY_APPROVED" &&
+        recoveryCase.selectedIntervention === "CREATE_PAYMENT_LINK" &&
+        isRazorpayConfigured()
+      ) {
+        // Day 6 — live Razorpay Test Mode path. Uses the EXACT SAME createLivePaymentLink
+        // function routes/recoveryCases.js's POST /:id/payment-link calls — no voice-specific
+        // Razorpay executor (AGENT_DESIGN.md § Voice pipeline).
+        //
+        // The atomic claim (pipeline/tools.js) queries the DB directly, so the POLICY_APPROVED
+        // state runVoiceDecisionPipeline just computed in-memory must be persisted first —
+        // unlike the simulated path below, which never touches the DB until the single save()
+        // at the end of this handler.
+        await recoveryCase.save();
+
+        const outcome = await createLivePaymentLink({ recoveryCase, merchantId: req.merchant.id, customer });
+
+        if (outcome.ok) {
+          recoveryCase = outcome.recoveryCase;
+          paymentLink = outcome.link;
+          executedAction = outcome.result || {
+            status: "LIVE_TEST_MODE",
+            action: "CREATE_PAYMENT_LINK",
+            success: null,
+            outcome: recoveryCase.status,
+          };
+
+          if (!outcome.reused) {
+            await RecoveryAction.create({
+              caseId: recoveryCase._id,
+              merchantId: req.merchant.id,
+              actionType: "CREATE_PAYMENT_LINK",
+              status: "LIVE_TEST_MODE",
+              result: recoveryCase.status,
+              metadata: { live: true, source: "VOICE", sessionId, razorpayPaymentLinkId: outcome.link.id },
+            });
+          }
+
+          auditEntries.push({
+            eventType: "PAYMENT_LINK_CREATED",
+            actor: "SYSTEM",
+            reason: "CREATE_PAYMENT_LINK",
+            result: recoveryCase.status,
+            metadata: { live: true, sessionId, reused: outcome.reused, razorpayPaymentLinkId: outcome.link.id },
+          });
+        } else {
+          // Failure safety: never fabricate success — the case's DB state is already
+          // persisted as POLICY_APPROVED (from the save() above) and stays retryable.
+          executedAction = { status: "FAILED", action: "CREATE_PAYMENT_LINK", success: null, outcome: recoveryCase.status };
+          auditEntries.push({
+            eventType: "PAYMENT_LINK_CREATION_FAILED",
+            actor: "SYSTEM",
+            reason: outcome.code,
+            result: recoveryCase.status,
+            metadata: { live: true, sessionId },
+          });
+        }
+      } else if (recoveryCase.status === "POLICY_APPROVED") {
         // Seeded per case+attempt, not Math.random() — CLAUDE.md § Deterministic randomness —
-        // identical convention to POST /:id/simulate-action.
+        // identical convention to POST /:id/simulate-action. Unchanged from before Day 6.
         const rng = mulberry32(seedFromString(`${recoveryCase._id}:${recoveryCase.attempts}`));
         executedAction = executeAction({ recoveryCase, action: recoveryCase.selectedIntervention, rng });
 
@@ -253,6 +315,7 @@ voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), a
       candidateAction,
       policyResult,
       action: executedAction,
+      paymentLink,
       response: voiceResponse.responseText,
       speechText: voiceResponse.speechText,
     });
