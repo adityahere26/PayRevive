@@ -208,3 +208,30 @@ already used its retry attempts.
 
 Any failure returns a structured `RECOVERY_POLICY_BLOCKED` (or equivalent) error and writes an
 audit event; it never silently no-ops.
+
+**Implemented (Day 6), Test Mode only.** `POST /api/recovery-cases/:id/payment-link` enforces this
+checklist exactly as written above before calling Razorpay's Standard Payment Links API in
+Razorpay **Test Mode** — see `ARCHITECTURE.md` § Razorpay integration plan for the full mechanism,
+including:
+
+- Item 4 (idempotent reuse) is backed by a single atomic Mongo claim
+  (`razorpayLinkClaimedAt`), not a read-then-write, with a **30-second self-healing expiry** so a
+  request that dies mid-flight can never permanently lock a case out of retrying.
+- Item 5's `APPROVE` outcome is the same Policy Engine gate that governs every other candidate
+  action — a high-value case (`HIGH_VALUE_REQUIRES_REVIEW`) never reaches this checklist at all,
+  because it never resolves to `APPROVE` for `CREATE_PAYMENT_LINK` in the first place. No autonomous
+  Razorpay call is structurally reachable for such a case.
+- The simulated Action Executor (`/simulate-action`, batch evaluation) is unaffected by any of
+  this — it remains fully available and never calls Razorpay, regardless of whether Test Mode
+  credentials are configured.
+- `recoveredAmount` is credited only once a Razorpay webhook has verified an actual successful
+  payment (`payment_link.paid`) against this same case — never at the point this checklist passes,
+  and never merely because a payment link was created. `payment_link.expired`/`.cancelled` never
+  credit revenue.
+- Voice-driven `CREATE_PAYMENT_LINK` (`RECOVERY_POLICY.md` § Voice intent → outcome mapping, `PAY_NOW`)
+  runs through this exact same checklist and the same executor — there is no separate, weaker
+  voice-only path to Razorpay.
+
+Real/live Razorpay payments are out of scope for this build; nothing in this checklist, the
+executor, or the webhook handler can reach Razorpay Live Mode (`ARCHITECTURE.md` § Test Mode
+enforcement).

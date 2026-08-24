@@ -116,13 +116,27 @@ Indexes: `merchantId`, `customerId`, `status`
 `_id, merchantId, customerId, sourceType (PAYMENT_FAILURE|CHECKOUT_ABANDONMENT), paymentId,
 checkoutSessionId, amount, currency, status (state machine, below), rootCause, recoveryProbability,
 reasonCodes[], selectedIntervention, policyDecision, attempts, voiceAttempts, recoveredAmount,
-recoveryWindowExpiresAt, createdAt, updatedAt`
+recoveryWindowExpiresAt, razorpayPaymentLinkId, razorpayPaymentLinkShortUrl, razorpayLinkClaimedAt,
+createdAt, updatedAt`
 Indexes: `merchantId`, `customerId`, `status`, `createdAt`
+
+The three `razorpay*` fields are Day 6 additions, safe identifiers only (never a credential) — see
+§ Razorpay integration (Test Mode). `razorpayPaymentLinkId` doubles as the Payment Link safety
+checklist's idempotency check (`RECOVERY_POLICY.md`): once set, a retry/double-click reuses the
+existing link instead of creating a second one. `razorpayLinkClaimedAt` backs the atomic,
+self-healing creation claim described in the same section — it is not meaningful once a link
+exists and is cleared on both success and failure.
 
 **recovery_actions**
 `_id, caseId, merchantId, actionType (CREATE_PAYMENT_LINK|START_VOICE_RECOVERY|
 RECORD_PROMISE_TO_PAY|ESCALATE|STOP), status, result, metadata, createdAt`
 Indexes: `caseId`, `merchantId`
+
+`status` is an unconstrained string, not an enum — in practice it is `SIMULATED` for the
+Razorpay-free simulated executor path (evaluation, `/simulate-action`, voice when Razorpay isn't
+configured) or `LIVE_TEST_MODE` for a real Razorpay Test Mode action (§ Razorpay integration),
+keeping the two paths distinguishable in the dashboard and audit trail per `EVALUATION.md`'s
+honesty-separation requirement.
 
 **recovery_attempts**
 `_id, caseId, merchantId, attemptNumber, channel (PAYMENT_LINK|VOICE|RETRY), outcome, createdAt`
@@ -254,28 +268,91 @@ only two different ways of invoking the same Revenue Risk Detector (module 1):
    live demo or evaluator isn't forced to wait out a real timeout window; the resulting case,
    audit trail, and downstream behavior are indistinguishable from the real path.
 
-## Razorpay integration plan
+## Razorpay integration plan (implemented, Day 6)
+
+Built and tested (mocked Razorpay boundary — no real network call in any automated test). Two
+recovery paths coexist, deliberately kept distinct so the dashboard and audit trail never conflate
+them (`EVALUATION.md` § Honesty separation, applied here to live vs. simulated single-case
+recovery, not just batch evaluation):
+
+- **Simulated recovery** — `POST /:id/simulate-action` (unchanged since Day 3) and the batch
+  evaluator. Never calls Razorpay; resolves an outcome via the seeded PRNG against the case's own
+  `recoveryProbability`. `recovery_actions.status` is `SIMULATED`.
+- **Razorpay Test Mode recovery** — `POST /:id/payment-link` and the voice turn handler when
+  `selectedIntervention === CREATE_PAYMENT_LINK` and Razorpay is configured. Makes a real Razorpay
+  **Test Mode** API call. `recovery_actions.status` is `LIVE_TEST_MODE`. **Real/live Razorpay
+  payments are out of scope for this build** — see § Test Mode enforcement below; no code path in
+  this system can reach Razorpay Live Mode.
+
+Both paths execute through the same Action Executor (`pipeline/actionExecutor.js`) and, for the
+live path specifically, the same shared function (`pipeline/tools.js`'s `createLivePaymentLink`)
+— `routes/recoveryCases.js`'s `POST /:id/payment-link` and `routes/voice.js`'s voice-turn handler
+both call it, so there is exactly one Razorpay-executing code path, never a voice-specific one.
 
 - **Mode:** Test Mode only, everywhere. Keys read from `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`,
-  used only server-side.
-- **Primary API:** Standard Payment Links (`POST /v1/payment_links` per Razorpay's documented
-  Payment Links API), created from the backend after the full validation chain in
-  `RECOVERY_POLICY.md` § Payment Link Safety passes. The recovery case's own `_id` is passed in
-  the link's `reference_id`/`notes` so the webhook can map an incoming event back to a case
-  without trusting any client-supplied identifier.
-- **Webhook:** `POST /api/webhooks/razorpay`, configured in the Razorpay Dashboard (Test Mode)
-  against `payment_link.paid` (and/or `payment.captured`) events. Verified using the raw request
-  body and `RAZORPAY_WEBHOOK_SECRET` per Razorpay's documented HMAC signature scheme. **Exact
-  header name and event/payload field names (signature header, event id field) will be confirmed
-  against Razorpay's current official webhook documentation at implementation time (Day 4) rather
-  than assumed here** — this doc will be updated once verified, per the "don't invent undocumented
-  contracts" rule.
-- **Idempotency:** every inbound webhook is first written to `webhook_events` keyed by a unique
-  `eventId`; a duplicate insert (unique index violation) short-circuits to `ALREADY_PROCESSED`
-  before any state-changing logic runs. Recovered-revenue accounting only ever happens on the
-  first successful processing of a given `eventId`.
-- **Orders API:** not used unless Payment Links prove insufficient for the demo flow; no plan to
-  add it speculatively.
+  used only server-side (`server/src/integrations/razorpay/client.js`, the only file that reads
+  them to make a request — mirrors the `ai/gemini/client.js` "one file imports the credential"
+  pattern). Never sent to the frontend, to Gemini, or logged.
+- **Test Mode enforcement:** `config/env.js` refuses to start if a configured `RAZORPAY_KEY_ID`
+  does not begin with `rzp_test_` — Razorpay's own documented Test/Live key prefix convention.
+  A live-shaped key is a hard startup failure, not a warning, making it structurally difficult to
+  point this build at Live Mode by accident.
+- **Direct HTTPS, no SDK:** `integrations/razorpay/` calls the REST API directly (Node's built-in
+  `fetch`, Basic Auth) rather than depending on the `razorpay` npm package — the Payment Links API
+  is a single authenticated POST, and this also lets webhook signature comparison use
+  `crypto.timingSafeEqual` rather than the SDK's own non-constant-time comparison.
+- **API:** `POST /api/recovery-cases/:id/payment-link` (rate-limited, `requireMerchantOwnership`)
+  runs the Payment Link safety checklist (`RECOVERY_POLICY.md` § Payment Link safety checklist),
+  then calls Razorpay's Standard Payment Links API (`POST /v1/payment_links`, verified against
+  Razorpay's official docs). The amount sent is always the case's own stored `amount` in rupees,
+  converted to paise (`amount * 100`) — Razorpay's smallest-currency-unit convention — never a
+  client-supplied value. `accept_partial` is always `false`, which structurally rules out
+  Razorpay's `payment_link.partially_paid` event for any link this system creates. The recovery
+  case's own `_id` is passed as the link's `reference_id` (and again in `notes`) so the webhook can
+  map an incoming event back to a case without trusting any client-supplied identifier.
+- **Idempotent creation (atomic claim, self-healing):** creating a payment link is guarded by a
+  single atomic Mongo `findOneAndUpdate` (`pipeline/tools.js`'s `claimPaymentLinkCreation`) — never
+  a read-then-write — that only matches a case which is `POLICY_APPROVED` for
+  `CREATE_PAYMENT_LINK`, has no link yet, and is not currently claimed by another in-flight
+  request. The claim (`razorpayLinkClaimedAt`) expires after **30 seconds**: a request that dies
+  mid-flight (crash, timeout) leaves the case automatically reclaimable rather than permanently
+  locked, with no separate "creating" state needed in the state machine. If the Razorpay call
+  itself fails, the claim is released immediately and the case stays `POLICY_APPROVED`, retryable.
+  If a link already exists for the case (`razorpayPaymentLinkId` set), the route returns that
+  existing link instead of calling Razorpay again — a retry, double-click, or page refresh can
+  never create a second link for the same case.
+- **Webhook:** `POST /api/webhooks/razorpay` (`server/src/routes/webhooks.js`), configured in the
+  Razorpay Dashboard (Test Mode) against `payment_link.paid`, `payment_link.expired`, and
+  `payment_link.cancelled` (defensive — this system never exposes a cancel action). Mounted before
+  the global `express.json()` parser so it receives the untouched **raw** request body, verified
+  against `RAZORPAY_WEBHOOK_SECRET` using the `X-Razorpay-Signature` header
+  (HMAC-SHA256 over the raw body, hex-encoded) per Razorpay's documented webhook signature scheme.
+  `payment_link.paid` resolves the case to `RECOVERED`; `payment_link.expired`/`.cancelled` resolve
+  it to `FAILED` (which, per § Payment state machine, re-enters `ANALYZING` on the next
+  `/evaluate` — no special-casing needed). Before mutating anything, the handler cross-checks the
+  webhook's link id, amount (converted back from paise), and currency against the values already
+  stored on the resolved `RecoveryCase` — merchant identity is always derived from that stored
+  case, never trusted from the webhook payload itself.
+- **Idempotency (delivery):** the `X-Razorpay-Event-Id` header — Razorpay's documented "unique per
+  event" dedup identifier — is written to `webhook_events` first, keyed by its unique `eventId`
+  index; a duplicate insert (unique index violation) short-circuits to `ALREADY_PROCESSED` before
+  any state-changing logic runs. `resolveRecoveryOutcome` (`pipeline/outcomeEvaluator.js`) is also
+  idempotent at the case level — a case no longer `WAITING_OUTCOME` is left untouched — so an
+  out-of-order or duplicate delivery can never mutate state or credit revenue twice.
+- **Recovered revenue:** `recoveredAmount` is set in exactly one place on the live path —
+  `resolveRecoveryOutcome`, only after a verified `payment_link.paid` webhook has passed every
+  cross-check above. It is never set at link-creation time, never speculatively, and never on a
+  Razorpay failure or timeout — matching the simulated path's existing rule that recovered revenue
+  is always derived from an actual outcome, never fabricated.
+- **High-value cases:** the Policy Engine's existing precedence order is unchanged — an amount
+  above `MAX_AUTONOMOUS_AMOUNT` resolves to `ESCALATE` before a candidate action is ever approved
+  (`RECOVERY_POLICY.md` § Policy precedence), so `POST /:id/payment-link` rejects such a case
+  (409) before `createLivePaymentLink` is ever called. No code path allows the Razorpay adapter to
+  be reached for a case the Policy Engine hasn't approved for `CREATE_PAYMENT_LINK`.
+- **Local webhook testing:** Razorpay's servers cannot reach `localhost`; exercising the webhook
+  against a local dev server requires a public HTTPS tunnel (e.g. ngrok) with that URL registered
+  as the webhook endpoint in the Razorpay Dashboard (Test Mode).
+- **Orders API:** not used — Payment Links proved sufficient for this build's flow.
 
 ## Deployment topology
 
@@ -321,3 +398,9 @@ only two different ways of invoking the same Revenue Risk Detector (module 1):
   evaluation engine.
 - **Checkout abandonment detection and its demo trigger share one code path** — see § Checkout
   abandonment detection above.
+- **The simulated and live Razorpay paths are one function with an additive parameter, not two
+  implementations.** `pipeline/actionExecutor.js`'s `CREATE_PAYMENT_LINK` branch takes an optional
+  `live` flag; every pre-Day-6 caller (evaluation, `/simulate-action`, voice without Razorpay
+  configured) omits it and is unaffected. This is what keeps the simulated executor permanently
+  available and Razorpay-free — see § Razorpay integration plan (implemented, Day 6) — without
+  duplicating the state-machine logic between the two paths.
