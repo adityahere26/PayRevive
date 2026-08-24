@@ -117,6 +117,9 @@ const voiceTurnSchema = {
 // decision + spoken response out. Runs: Gemini intent classification -> deterministic
 // intent->action mapping -> the SAME Eligibility/Policy Engine as text recovery -> (if
 // approved) the SAME simulated executor -> Gemini response phrasing of the trusted outcome.
+// The response carries two text forms (ai/gemini/responseGenerator.js): `response` (Roman
+// Hinglish, for the on-screen transcript) and `speechText` (Devanagari Hindi, for the
+// browser's SpeechSynthesis call) — see client/src/pages/VoiceRecovery.jsx.
 voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), async (req, res, next) => {
   try {
     const recoveryCase = req.resource;
@@ -251,6 +254,7 @@ voiceRouter.post("/turn", voiceTurnRateLimiter, validateBody(voiceTurnSchema), a
       policyResult,
       action: executedAction,
       response: voiceResponse.responseText,
+      speechText: voiceResponse.speechText,
     });
   } catch (err) {
     next(err);

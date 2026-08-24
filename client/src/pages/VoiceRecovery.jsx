@@ -5,13 +5,54 @@ import { api } from "../api/client.js";
 // AGENT_DESIGN.md § Voice pipeline. Browser mic (Web Speech API — Chrome recommended) ->
 // transcript -> POST /voice/turn -> Gemini intent classification -> the SAME deterministic
 // Eligibility/Policy Engine as text recovery -> (if approved) the SAME simulated executor ->
-// Gemini-phrased Hinglish response, spoken back via browser SpeechSynthesis. Text input is
-// available at all times and feeds the exact same backend turn, so this works in browsers
-// without speech support too.
+// Gemini-phrased response, spoken back via browser SpeechSynthesis. Text input is available at
+// all times and feeds the exact same backend turn, so this works in browsers without speech
+// support too.
+//
+// Two text forms come back per turn (server/src/ai/gemini/responseGenerator.js): `response`
+// (Roman-script Hinglish, shown in the transcript below) and `speechText` (Devanagari Hindi,
+// what's actually spoken). Chrome's hi-IN voices pronounce Devanagari correctly; the same
+// content transliterated into Roman letters is read back as broken, word-by-word English by
+// most hi-IN synthesis voices — that mismatch was the original pronunciation problem.
 
 const SpeechRecognitionCtor =
   typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 const speechSynthesisSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+
+// Chrome (and others) populate the voice list asynchronously — getVoices() can return an empty
+// array until the 'voiceschanged' event fires, so the very first utterance of a page load would
+// otherwise always miss a hi-IN voice even if one exists. Cached module-level so this only has
+// to happen once per page load, not once per turn.
+let voicesReadyPromise = null;
+
+function loadVoices() {
+  if (!speechSynthesisSupported) return Promise.resolve([]);
+  const existing = window.speechSynthesis.getVoices();
+  if (existing.length > 0) return Promise.resolve(existing);
+  if (!voicesReadyPromise) {
+    voicesReadyPromise = new Promise((resolve) => {
+      const onVoicesChanged = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+      // Some browsers never fire 'voiceschanged' at all — don't hang forever waiting for one.
+      setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1000);
+    });
+  }
+  return voicesReadyPromise;
+}
+
+// Never hardcode a specific voice name — availability differs by OS/Chrome build. Prefer an
+// exact hi-IN voice; fall back to any Hindi-language voice; otherwise return null and let the
+// browser use its own default voice (still correct, just not guaranteed Hindi-accented).
+function pickHindiVoice(voices) {
+  return (
+    voices.find((v) => v.lang?.toLowerCase() === "hi-in") ||
+    voices.find((v) => v.lang?.toLowerCase().startsWith("hi")) ||
+    null
+  );
+}
 
 const TERMINAL_STATUSES = ["RECOVERED", "STOPPED", "ESCALATED", "EXPIRED"];
 
@@ -95,13 +136,15 @@ export default function VoiceRecovery() {
     }
   }
 
-  function speak(text) {
-    if (!speechSynthesisSupported) {
+  async function speak(text) {
+    if (!speechSynthesisSupported || !text) {
       setUiState((s) => (s === "RESPONDING" ? "READY" : s));
       return;
     }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "hi-IN";
+    const hindiVoice = pickHindiVoice(await loadVoices());
+    if (hindiVoice) utterance.voice = hindiVoice;
     utterance.onend = () => setUiState((s) => (s === "RESPONDING" ? "READY" : s));
     utterance.onerror = () => setUiState((s) => (s === "RESPONDING" ? "READY" : s));
     window.speechSynthesis.cancel();
@@ -122,18 +165,11 @@ export default function VoiceRecovery() {
       setLastTurn(res);
       setConversation((c) => [...c, { speaker: "assistant", text: res.response }]);
 
-      if (TERMINAL_STATUSES.includes(res.recoveryCase.status)) {
-        setUiState("ENDED");
-        if (speechSynthesisSupported) {
-          const utterance = new SpeechSynthesisUtterance(res.response);
-          utterance.lang = "hi-IN";
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utterance);
-        }
-      } else {
-        setUiState("RESPONDING");
-        speak(res.response);
-      }
+      setUiState(TERMINAL_STATUSES.includes(res.recoveryCase.status) ? "ENDED" : "RESPONDING");
+      // Spoken aloud in Devanagari Hindi (speechText) — displayed on-screen in Roman Hinglish
+      // (response, added to the conversation above). Falls back to `response` defensively if
+      // an older/unexpected payload ever lacks speechText.
+      speak(res.speechText || res.response);
     } catch (err) {
       setTurnError(err.message);
       setUiState("READY");

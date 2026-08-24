@@ -11,8 +11,8 @@
 // @property {string} name
 // @property {(context: object, deps?: object) => Promise<{recommendedAction: string, reason: string, confidence: number, fallback: boolean}>} planRecoveryDecision
 // @property {(context: object, deps?: object) => Promise<{intent: string, recommendedAction: string, confidence: number, reasonCodes: string[], requiresHumanReview: boolean, fallback: boolean}>} classifyVoiceIntent
-// @property {(decisionContext: object, deps?: object) => Promise<{responseText: string, fallback: boolean}>} generateVoiceResponse
-// @property {() => {responseText: string, fallback: boolean}} clarificationResponse fixed "please repeat" template, no AI call
+// @property {(decisionContext: object, deps?: object) => Promise<{responseText: string, speechText: string, fallback: boolean}>} generateVoiceResponse
+// @property {() => {responseText: string, speechText: string, fallback: boolean}} clarificationResponse fixed "please repeat" template, no AI call
 
 import { planRecoveryDecision } from "./gemini/planner.js";
 import { classifyVoiceIntent } from "./gemini/voiceClassifier.js";
