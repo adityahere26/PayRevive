@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client.js";
 
 // CLAUDE.md § Day 3 § 14 Recovery Case Detail — "This page is extremely important for the
@@ -88,6 +88,7 @@ export default function RecoveryCaseDetail() {
 
   const canEvaluate = ["RISK_DETECTED", "ANALYZING", "FAILED"].includes(recoveryCase.status);
   const canSimulateAction = recoveryCase.status === "POLICY_APPROVED";
+  const canStartVoice = ["RISK_DETECTED", "ANALYZING", "FAILED", "ELIGIBLE"].includes(recoveryCase.status);
 
   const completedEventTypes = new Set(auditLog.map((e) => e.eventType));
 
@@ -139,7 +140,15 @@ export default function RecoveryCaseDetail() {
           >
             {busy ? "Working…" : "Simulate Action"}
           </button>
-          {!canEvaluate && !canSimulateAction && (
+          {canStartVoice && (
+            <Link
+              to={`/voice-recovery/${recoveryCase._id}`}
+              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Start Voice Recovery
+            </Link>
+          )}
+          {!canEvaluate && !canSimulateAction && !canStartVoice && (
             <span className="text-xs text-slate-400">
               This case is in a terminal or in-flight state — no further action available.
             </span>

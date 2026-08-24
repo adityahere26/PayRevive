@@ -16,6 +16,7 @@ function, via the Policy Engine, can approve one for execution.
 | `ESCALATION_AMOUNT` | = `MAX_AUTONOMOUS_AMOUNT` unless merchant sets separately | threshold triggering mandatory human review |
 | `OPT_OUT_BEHAVIOR` | `DO_NOT_CONTACT` | opted-out customers are never contacted by any channel |
 | `MAX_CONTACT_ATTEMPTS` | = `MAX_RECOVERY_ATTEMPTS` (kept distinct per brief; may diverge later) | ceiling on total contact events, including non-executed attempts where applicable |
+| `voiceEnabled` | `true` | gates whether a voice-recovery session can be started at all for this merchant. Checked before any Gemini call — `false` never starts a session, never silently degrades to a different channel. |
 
 Configurable per merchant via `GET/PUT /api/merchant/policy` (see `ARCHITECTURE.md`).
 

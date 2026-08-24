@@ -15,10 +15,15 @@ import { executeAction } from "../pipeline/actionExecutor.js";
 import { getCustomerHistory } from "../pipeline/tools.js";
 import { writeAuditLog, writeAuditLogs } from "../audit/auditLogger.js";
 import { mulberry32, seedFromString } from "../lib/prng.js";
+import { voiceRouter } from "./voice.js";
 
 export const recoveryCasesRouter = Router();
 
 recoveryCasesRouter.use(requireAuth);
+
+// Voice routes (AGENT_DESIGN.md § Voice pipeline) share the exact same ownership check every
+// other :id sub-route uses — mounted here, once, rather than repeated in voice.js.
+recoveryCasesRouter.use("/:id/voice", requireMerchantOwnership(RecoveryCase), voiceRouter);
 
 recoveryCasesRouter.get("/", async (req, res, next) => {
   try {

@@ -42,3 +42,18 @@ export const recoveryCaseActionRateLimiter = createRateLimiter({
   max: 120,
   message: "Too many recovery-case action requests. Please try again later.",
 });
+
+// SECURITY.md § Rate limiting table's `/voice-intent` entry: "prevents runaway Gemini API
+// cost / spam sessions." Session creation is tighter than turns since it also consumes the
+// merchant's maxVoiceAttempts budget per case.
+export const voiceSessionRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Too many voice session requests. Please try again later.",
+});
+
+export const voiceTurnRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: "Too many voice interactions. Please try again later.",
+});

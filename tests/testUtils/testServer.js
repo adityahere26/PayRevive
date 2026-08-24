@@ -23,6 +23,13 @@ export async function startTestServer({ mongoUri, envOverrides = {} } = {}) {
   process.env.MONGODB_URI = uri;
   process.env.JWT_SECRET = TEST_JWT_SECRET;
   process.env.CLIENT_URL = TEST_CLIENT_URL;
+  // Forced empty regardless of the real .env file on disk — dotenv.config() (called inside
+  // config/env.js) never overrides a key already present in process.env, even an empty one,
+  // so this guarantees every test run is offline with respect to Gemini (CLAUDE.md § Day 5:
+  // "the normal test suite must not depend on a live Gemini API key") no matter what real
+  // credential a developer has configured locally. A test that explicitly needs a truthy
+  // value can still override it via envOverrides below.
+  process.env.GEMINI_API_KEY = "";
   Object.assign(process.env, envOverrides);
 
   const dbModule = await import("../../server/src/config/db.js");

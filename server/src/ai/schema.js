@@ -36,3 +36,42 @@ export const SAFE_FALLBACK_DECISION = Object.freeze({
   reason: "AI_PLANNER_UNAVAILABLE_OR_INVALID",
   confidence: 0,
 });
+
+// AGENT_DESIGN.md § AI output contract — the Voice Intent Classifier's exact documented
+// shape (module 8). `recommendedAction` here is ADVISORY ONLY: it is never trusted as the
+// candidateAction fed to the Policy Engine — pipeline/voiceIntentMapper.js deterministically
+// re-derives the real candidate action from `intent` per RECOVERY_POLICY.md § Voice intent ->
+// outcome mapping, so the model's own action guess can never be the thing that executes.
+export const VOICE_INTENTS = Object.freeze([
+  "PAY_NOW",
+  "PAY_LATER",
+  "PAYMENT_METHOD_PROBLEM",
+  "CANNOT_PAY",
+  "REFUSE",
+  "UNCLEAR",
+  "HUMAN_ESCALATION",
+]);
+
+export const VOICE_INTENT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent", "recommendedAction", "confidence", "reasonCodes", "requiresHumanReview"],
+  properties: {
+    intent: { type: "string", enum: VOICE_INTENTS },
+    recommendedAction: { type: "string", enum: AI_RECOMMENDED_ACTIONS },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    reasonCodes: { type: "array", items: { type: "string", maxLength: 100 }, maxItems: 10 },
+    requiresHumanReview: { type: "boolean" },
+  },
+};
+
+// Any field outside the enumerated values, missing required fields, or malformed JSON is a
+// hard reject — the session falls back to UNCLEAR and asks the customer to repeat/clarify, it
+// never guesses (AGENT_DESIGN.md § AI output contract).
+export const SAFE_FALLBACK_VOICE_INTENT = Object.freeze({
+  intent: "UNCLEAR",
+  recommendedAction: "ASK_CLARIFICATION",
+  confidence: 0,
+  reasonCodes: Object.freeze(["AI_PLANNER_UNAVAILABLE_OR_INVALID"]),
+  requiresHumanReview: false,
+});

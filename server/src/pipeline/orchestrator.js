@@ -90,3 +90,81 @@ export function runEvaluationPipeline({ recoveryCase, policy, customer, payment,
 
   return { recoveryCase, auditEntries };
 }
+
+// AGENT_DESIGN.md § Voice pipeline / migration task "the voice experience must use the SAME
+// recovery/policy pipeline as text-based recovery." This is deliberately NOT a parallel
+// re-implementation of runEvaluationPipeline: it calls the exact same evaluateEligibility and
+// evaluatePolicy functions above, from the exact same policy/policyPrecedence.js module. The
+// only difference from the text flow is where `candidateAction` comes from — here it's
+// supplied by the caller (routes/voice.js, via pipeline/voiceIntentMapper.js's deterministic
+// intent->action lookup) instead of being computed by the recovery-score-based
+// interventionSelector.js. This is exactly what the Policy Engine (module 6) is designed to
+// gate: ANY candidate action, regardless of source, still passes through the full shared
+// precedence function before anything executes.
+//
+// Like runEvaluationPipeline, this only progresses a case from RISK_DETECTED, ANALYZING,
+// FAILED, or ELIGIBLE — routes/voice.js is responsible for refusing to start a new voice
+// session on a case already past ELIGIBLE (ACTION_SELECTED/POLICY_APPROVED/terminal), so this
+// function is never asked to arbitrate a case mid-flight through some other channel.
+/**
+ * @param {{recoveryCase: object, policy: object, customer: object, payment: object|null, candidateAction: string}} args
+ * @returns {{recoveryCase: object, auditEntries: Array<object>, policyResult: {outcome: string, reasonCode: string}|null}}
+ */
+export function runVoiceDecisionPipeline({ recoveryCase, policy, customer, payment, candidateAction }) {
+  const auditEntries = [];
+
+  if (recoveryCase.status === "FAILED" || recoveryCase.status === "RISK_DETECTED") {
+    transition(recoveryCase, "ANALYZING");
+  }
+
+  if (recoveryCase.status === "ANALYZING") {
+    if (!recoveryCase.rootCause) {
+      recoveryCase.rootCause = analyzeRootCause(payment);
+      auditEntries.push({
+        eventType: "ROOT_CAUSE_IDENTIFIED",
+        reason: null,
+        result: recoveryCase.rootCause,
+        metadata: { paymentId: payment?._id ?? null, source: "VOICE" },
+      });
+    }
+
+    const eligibility = evaluateEligibility({ recoveryCase, policy, customer });
+    auditEntries.push({
+      eventType: "ELIGIBILITY_EVALUATED",
+      reason: eligibility.reasonCode,
+      result: recoveryCase.status,
+      metadata: { source: "VOICE" },
+    });
+
+    if (recoveryCase.status !== "ELIGIBLE") {
+      // Routed straight to STOPPED/ESCALATED/EXPIRED — the case's fate is already decided;
+      // the voice-supplied candidateAction is never consulted.
+      return { recoveryCase, auditEntries, policyResult: null };
+    }
+  }
+
+  if (recoveryCase.status === "ELIGIBLE") {
+    recoveryCase.selectedIntervention = candidateAction;
+    transition(recoveryCase, "ACTION_SELECTED");
+    auditEntries.push({
+      eventType: "INTERVENTION_SELECTED",
+      reason: null,
+      result: candidateAction,
+      metadata: { source: "VOICE" },
+    });
+  }
+
+  if (recoveryCase.status !== "ACTION_SELECTED") {
+    return { recoveryCase, auditEntries, policyResult: null };
+  }
+
+  const policyResult = evaluatePolicy({ recoveryCase, policy, customer, candidateAction });
+  auditEntries.push({
+    eventType: "POLICY_EVALUATED",
+    reason: policyResult.reasonCode,
+    result: recoveryCase.status,
+    metadata: { candidateAction, source: "VOICE" },
+  });
+
+  return { recoveryCase, auditEntries, policyResult };
+}

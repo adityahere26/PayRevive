@@ -79,4 +79,13 @@ export const api = {
   getRecoveryCaseAudit: (id) => request(`/recovery-cases/${id}/audit`),
   evaluateRecoveryCase: (id) => request(`/recovery-cases/${id}/evaluate`, { method: "POST" }),
   simulateRecoveryAction: (id) => request(`/recovery-cases/${id}/simulate-action`, { method: "POST" }),
+
+  // AGENT_DESIGN.md § Voice pipeline. Every call here goes to the payrevive backend, never
+  // directly to Gemini — the browser never sees any Gemini credential (SECURITY.md § Gemini /
+  // AI provider security).
+  startVoiceSession: (caseId) => request(`/recovery-cases/${caseId}/voice/session`, { method: "POST" }),
+  sendVoiceTurn: (caseId, { sessionId, transcript }) =>
+    request(`/recovery-cases/${caseId}/voice/turn`, { method: "POST", body: { sessionId, transcript } }),
+  endVoiceSession: (caseId, sessionId) =>
+    request(`/recovery-cases/${caseId}/voice/session/end`, { method: "POST", body: { sessionId } }),
 };

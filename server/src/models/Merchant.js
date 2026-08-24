@@ -15,6 +15,11 @@ const policySchema = new Schema(
     escalationAmount: { type: Number, default: null, min: 0 },
     optOutBehavior: { type: String, enum: ["DO_NOT_CONTACT"], default: "DO_NOT_CONTACT" },
     maxContactAttempts: { type: Number, default: 2, min: 0 },
+    // AGENT_DESIGN.md § Voice pipeline. Gates whether a voice session can be started at all
+    // for this merchant — checked by routes/voice.js before any Gemini call is made. Defaults
+    // to true so the Day 3/4 demo merchant (seeded before this field existed) gets voice
+    // enabled by default; a merchant can be switched off without disabling recovery entirely.
+    voiceEnabled: { type: Boolean, default: true },
   },
   { _id: false }
 );

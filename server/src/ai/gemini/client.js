@@ -11,7 +11,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../../config/env.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// Verified live against the Gemini API during Day 5 development: gemini-2.5-flash (used at
+// the Day 4 migration) had since been retired for this account ("no longer available to new
+// users"). gemini-3.5-flash is the current flash-tier model as of this writing, confirmed
+// working for both plain and responseSchema-constrained generateContent calls. If this model
+// is retired in turn, Gemini's 404 response names its replacement directly — update here.
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_TIMEOUT_MS = 10000;
 
 let cachedClient = null;
