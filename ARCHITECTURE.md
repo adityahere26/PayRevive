@@ -28,7 +28,7 @@
                          │  └──────────────────────────────────────┘  │
                          │                                            │
                          │  Razorpay Client (Test Mode) ── Webhook     │
-                         │  Handler ── OpenAI API Client (voice NLU)   │
+                         │  Handler ── Gemini API Client (AI Planner)  │
                          └──────┬─────────────────────────┬───────────┘
                                 │                          │
                      ┌──────────▼─────────┐     ┌──────────▼──────────┐
@@ -39,13 +39,14 @@
 
 The recovery pipeline is **deterministic orchestration**: plain function calls in sequence, each
 a separate module with a narrow contract. The only module that calls an external AI model is the
-Voice Intent Classifier, via the **OpenAI API** (payrevive's sole runtime AI provider — Claude
-Code is a development-time tool only, see `CLAUDE.md` § AI provider), and only during an active
-voice session; its output is a validated, schema-constrained recommendation that still passes
-through the Policy Engine like any other candidate action. See `AGENT_DESIGN.md` § Agent
-architecture for the full conceptual model (AI Decision/Planner → policy/guardrail engine →
-allowlisted action → executor → observation) and the rationale for why this is not built as a
-live LLM tool-calling loop.
+Voice Intent Classifier, via the **Gemini API** (payrevive's sole runtime AI provider, via the
+official `@google/genai` SDK — Claude Code is a development-time tool only, see `CLAUDE.md` § AI
+provider), and only during an active voice session; its output is a validated, schema-constrained
+recommendation that still passes through the Policy Engine like any other candidate action. See
+`AGENT_DESIGN.md` § Agent architecture for the full conceptual model (AI Decision/Planner →
+policy/guardrail engine → allowlisted action → executor → observation), § Provider abstraction
+for the `AIProvider` → `GeminiProvider` code boundary (`server/src/ai/`), and the rationale for
+why this is not built as a live LLM tool-calling loop.
 
 ## Folder structure (planned — not yet created)
 
@@ -63,7 +64,10 @@ live LLM tool-calling loop.
     /pipeline                the 10 deterministic modules from AGENT_DESIGN.md
     /policy                  policy engine + policy defaults
     /razorpay                Razorpay client wrapper (payment links, webhook verify)
-    /ai                      OpenAI client wrapper + AI output schema + validator
+    /ai                      provider.js (AIProvider boundary) + schema.js (AI output schema +
+                              validator) + /gemini (client.js — the only file importing
+                              @google/genai — and planner.js) — see AGENT_DESIGN.md §
+                              Provider abstraction
     /routes                  Express routers, grouped by resource
     /middleware              auth, merchant-scoping, rate limit, error handler
     /audit                   audit logger
@@ -285,9 +289,12 @@ only two different ways of invoking the same Revenue Risk Detector (module 1):
 
 ## Key architecture decisions and rationale
 
-- **Runtime AI provider is OpenAI, exclusively.** Claude Code is a development-time tool only.
-  Every runtime AI call (Voice Intent Classifier, optional explanation text) goes through the
-  OpenAI API. See `CLAUDE.md` § AI provider.
+- **Runtime AI provider is Google Gemini, exclusively**, via the official `@google/genai` SDK.
+  Claude Code is a development-time tool only. Every runtime AI call (the recovery
+  Decision/Planner, Voice Intent Classifier, optional explanation text) goes through the Gemini
+  API, and business logic depends on the `AIProvider` interface (`server/src/ai/provider.js`),
+  never on Gemini SDK objects directly — see `CLAUDE.md` § AI provider and `AGENT_DESIGN.md` §
+  Provider abstraction.
 - **No LLM tool-calling framework.** The "tools" named in the brief (`getRecoveryCase`,
   `createPaymentLink`, etc.) are implemented as plain backend service functions called by
   deterministic pipeline code, not as functions exposed to a live function-calling loop for the
@@ -310,7 +317,7 @@ only two different ways of invoking the same Revenue Risk Detector (module 1):
   data, so the agent can never improvise a commitment the system can't back (e.g. promising a
   discount, misquoting an amount).
 - **Evaluation reuses production pipeline code**, not a separate re-implementation, and never
-  calls the real OpenAI API or real Razorpay/voice services — see `EVALUATION.md` § Batch
+  calls the real Gemini API or real Razorpay/voice services — see `EVALUATION.md` § Batch
   evaluation engine.
 - **Checkout abandonment detection and its demo trigger share one code path** — see § Checkout
   abandonment detection above.

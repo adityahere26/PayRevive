@@ -63,7 +63,7 @@ Applied via `express-rate-limit`, tightest on the routes most exposed to abuse:
 |---|---|
 | `POST /api/auth/login` | brute-force protection |
 | `POST /api/auth/demo` | unauthenticated token-minting endpoint — limited per-IP to prevent token-flooding or using it as a free path to hammer other endpoints under fresh tokens |
-| `POST /api/recovery-cases/:id/voice-intent` | prevents runaway OpenAI API cost / spam sessions |
+| `POST /api/recovery-cases/:id/voice-intent` | prevents runaway Gemini API cost / spam sessions |
 | `POST /api/recovery-cases/:id/payment-link` | prevents payment-link spam against Razorpay |
 | `POST /api/recovery-cases/:id/execute` | prevents unlimited recovery-action triggering |
 | `POST /api/evaluation/run` | expensive (500–1000 pipeline runs); tightly limited |
@@ -76,14 +76,57 @@ never `*` where credentials (the JWT bearer) are involved.
 
 ## Secrets
 
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `OPENAI_API_KEY`,
-  `MONGODB_URI` read from environment variables only, backend-only. Never sent to or embedded in
-  frontend code. `OPENAI_API_KEY` authenticates payrevive's runtime AI provider (OpenAI) —
-  unrelated to Claude Code, the development tool used to build the project, which has no runtime
-  footprint.
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `GEMINI_API_KEY`,
+  `MONGODB_URI` read from environment variables only (`process.env.GEMINI_API_KEY`, read exactly
+  once in `server/src/config/env.js`), backend-only. Never sent to, embedded in, or bundled into
+  frontend code — never prefixed `VITE_`, never referenced from anything under `client/`.
+  `GEMINI_API_KEY` authenticates payrevive's runtime AI provider (Google Gemini, via the official
+  `@google/genai` SDK) — unrelated to Claude Code, the development tool used to build the
+  project, which has no runtime footprint and is never called from application code.
 - `.env` is never committed; `.env.example` documents required variable names with empty values.
 - Secrets are never logged, including in error logs — the structured error handler strips known
-  secret-shaped fields before any log write.
+  secret-shaped fields before any log write; this also covers `GEMINI_API_KEY`-shaped metadata
+  (`lib/logger.js`'s redaction pattern matches any key/token/secret-shaped field name).
+
+## Gemini / AI provider security
+
+Consolidated statement of the guarantees around the runtime AI provider (see also
+`AGENT_DESIGN.md` § Provider abstraction for the code boundary these are enforced through):
+
+- **Google Gemini is the runtime AI provider.** Claude Code is development tooling only and has
+  no runtime role — see `CLAUDE.md` § AI provider.
+- **`GEMINI_API_KEY` is server-side only**, read from `process.env.GEMINI_API_KEY` in exactly one
+  place (`server/src/ai/gemini/client.js`, the only file that imports `@google/genai`). It is
+  never hardcoded, never committed to Git, and never exposed to the client.
+- **Gemini never receives Razorpay secrets** (`RAZORPAY_KEY_ID`/`_SECRET`/`_WEBHOOK_SECRET`) or
+  raw payment credentials (card numbers, CVV, UPI PINs) — the prompt-building function
+  (`buildRecoveryPrompt`) reads an explicit allowlist of case-safe fields only (amount, currency,
+  root cause, customer name, attempt counts) and never serializes an entire context/case object,
+  so an unexpected field can never leak into a prompt even if a future caller passes more than it
+  should.
+- **Gemini cannot directly access MongoDB** and cannot directly execute a payment operation —
+  the AI Decision/Planner (`server/src/ai/`) has no database connection and no Razorpay client;
+  its entire capability is "receive a constrained prompt, return one JSON object."
+- **Deterministic policy/guardrails remain the final authority.** Every `recommendedAction`
+  Gemini returns is advisory only — the same Eligibility Engine / Policy Engine
+  (`RECOVERY_POLICY.md` § Policy precedence) that governs a deterministically-selected candidate
+  action governs an AI-recommended one, with no separate, weaker code path.
+- **AI output is untrusted input.** It is schema-validated server-side with ajv
+  (`server/src/ai/schema.js`, independent of Gemini's own `responseSchema` enforcement) before
+  any code reads it; malformed JSON, a missing required field, or an out-of-allowlist
+  `recommendedAction` is a hard reject, never coerced or partially trusted.
+- **Actions are allowlisted structurally**, not just by business rule: `recommendedAction`'s
+  schema `enum` is the same `ACTION_ALLOWLIST` the Policy Engine enforces, plus
+  `ASK_CLARIFICATION` (never passed to the Policy Engine as a candidate action) — see § Action
+  allowlist in `AGENT_DESIGN.md`.
+- **Merchant isolation and audit logging are unaffected by the provider change** — nothing about
+  the Gemini integration alters `requireMerchantOwnership`, the `merchantId`-scoped query
+  pattern, or the audit event contract (`AGENT_DESIGN.md` § The ten modules, Audit Logger).
+- **Fail-safe on any AI failure.** A missing key, timeout, rate limit, network error, malformed
+  response, or schema violation never results in an unauthorized action — the planner resolves to
+  a safe fallback decision (`recommendedAction: "ESCALATE"`) instead of throwing or guessing; see
+  `server/src/ai/schema.js`'s `SAFE_FALLBACK_DECISION` and the planner tests in
+  `tests/aiProvider.test.js`.
 
 ## Webhook security
 
@@ -100,7 +143,7 @@ never `*` where credentials (the JWT bearer) are involved.
 ## Prompt injection
 
 Covered in depth in `AGENT_DESIGN.md` § Prompt Injection Defense. Summary: customer transcripts
-are passed to the OpenAI model as content to classify, never as instructions; the model's output
+are passed to the Gemini model as content to classify, never as instructions; the model's output
 space is a closed enum validated server-side; the Policy Engine has no code path through which
 classified text can alter policy, thresholds, amount, or destination — those values are never
 derived from model output or customer input.

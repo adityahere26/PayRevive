@@ -7,7 +7,7 @@ export default function VoiceRecovery() {
     <PagePlaceholder
       title={`Voice Recovery — Case ${caseId}`}
       phase="Planned — Day 5"
-      description="Hero feature: Hinglish voice recovery via browser speech recognition + OpenAI intent classification (AGENT_DESIGN.md § Voice pipeline). Not implemented in the Day 2 foundation."
+      description="Hero feature: Hinglish voice recovery via browser speech recognition + Google Gemini intent classification (AGENT_DESIGN.md § Voice pipeline). Not implemented yet."
     />
   );
 }

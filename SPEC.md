@@ -71,7 +71,7 @@ A browser-based voice experience (no outbound telephony infrastructure; **Chrome
 recommended/supported demo browser** for its Web Speech API support) where the customer speaks
 naturally in Hinglish (e.g. *"Haan, abhi payment kar deta hoon"*, *"Abhi nahi kar sakta,
 kal karunga"*, *"Card ka issue aa raha hai"*, *"UPI se kar sakta hoon"*, *"Nahi karna"*). The
-transcript is classified by **payrevive's runtime AI provider, OpenAI**, into one of: `PAY_NOW`,
+transcript is classified by **payrevive's runtime AI provider, Google Gemini**, into one of: `PAY_NOW`,
 `PAY_LATER`, `PAYMENT_METHOD_PROBLEM`, `CANNOT_PAY`, `REFUSE`, `UNCLEAR`, `HUMAN_ESCALATION`. A
 text-input fallback runs through the identical downstream pipeline for browsers without reliable
 speech support. See `AGENT_DESIGN.md` § Agent architecture for the classification pipeline and
@@ -116,7 +116,7 @@ Reference examples this build must reproduce and demo:
 ### P2 — only if time remains
 - Advanced analytics
 - Additional channels (SMS/WhatsApp — real integration, not simulated claims)
-- Additional AI providers beyond OpenAI (the MVP runtime uses OpenAI exclusively)
+- Additional AI providers beyond Gemini (the MVP runtime uses Google Gemini exclusively)
 - Advanced personalization
 - Animation/visual polish beyond baseline
 

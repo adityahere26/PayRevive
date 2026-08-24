@@ -10,11 +10,13 @@ dotenv.config();
 
 const REQUIRED = ["NODE_ENV", "PORT", "MONGODB_URI", "JWT_SECRET", "CLIENT_URL"];
 
-// Not required for the Day 2 foundation (no AI or Razorpay calls happen yet — see
-// AGENT_DESIGN.md / RECOVERY_POLICY.md). Missing values only produce a startup warning so
-// foundation tests never need real OpenAI/Razorpay credentials.
+// Not required for the deterministic pipeline (no AI or Razorpay calls happen from it — see
+// AGENT_DESIGN.md / RECOVERY_POLICY.md). Missing values only produce a startup warning so the
+// deterministic test suite never needs a real Gemini/Razorpay credential. GEMINI_API_KEY is
+// payrevive's sole runtime AI provider credential — see CLAUDE.md § AI provider; Claude Code
+// (this development tool) has no runtime footprint and is unrelated to this variable.
 const OPTIONAL_FOR_NOW = [
-  "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
   "RAZORPAY_KEY_ID",
   "RAZORPAY_KEY_SECRET",
   "RAZORPAY_WEBHOOK_SECRET",
@@ -43,7 +45,7 @@ function loadEnv() {
     MONGODB_URI: process.env.MONGODB_URI,
     JWT_SECRET: process.env.JWT_SECRET,
     CLIENT_URL: process.env.CLIENT_URL,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY || null,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || null,
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || null,
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || null,
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || null,

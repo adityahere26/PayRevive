@@ -5,10 +5,20 @@
 Batch evaluation is the primary evidence of the system working "across a batch," as the track
 requires. It must run the **actual production decision pipeline** (`/server/src/pipeline`) against
 a large, deterministic, synthetic dataset, and report honestly measured outcomes — never a
-hand-picked or fabricated number. **Batch evaluation never calls the OpenAI API, never calls
+hand-picked or fabricated number. **Batch evaluation never calls the Gemini API, never calls
 Razorpay, never starts a real voice session, and never executes any real external recovery
 action** — see § Batch evaluation engine for how every external call is substituted with a
 deterministic, seeded simulation.
+
+This separation is deliberate and load-bearing: the deterministic pipeline (Risk Detector →
+Root Cause Analyzer → Eligibility Engine → Scoring Engine → Intervention Selector → Policy
+Engine → Action Executor) must be fully testable — in both the automated test suite and a batch
+evaluation run — **without a live `GEMINI_API_KEY`**. The AI Decision/Planner
+(`server/src/ai/`, see `AGENT_DESIGN.md` § Provider abstraction) is a separate, independently
+testable module; its failure modes (timeout, malformed output, missing key) are handled by its
+own fail-safe fallback and are never a precondition for the deterministic guardrails' own tests
+to pass. A batch run only exercises the live AI planner if a future evaluation mode explicitly
+opts into testing it — the default run never requires or calls it.
 
 ## Synthetic dataset
 
@@ -48,11 +58,11 @@ dataset, then for each case:
    Scoring Engine → Intervention Selector → Policy Engine → Action Executor.
 2. The Action Executor, in evaluation mode, substitutes a **simulated executor** for every action
    that would otherwise reach a live external service — Razorpay Payment Link creation, a real
-   browser voice session, or an **OpenAI API call for voice intent classification**. This holds
+   browser voice session, or a **Gemini API call for voice intent classification**. This holds
    even for cases whose selected intervention is `START_VOICE_RECOVERY`: the simulated executor
    resolves the hypothetical voice outcome using the case's `interventionEffectiveness` and the
    seeded PRNG, the same way it resolves a Payment Link outcome — it never classifies a real
-   transcript or calls OpenAI. Concretely: `rng() < interventionEffectiveness → recovered`. This
+   transcript or calls Gemini. Concretely: `rng() < interventionEffectiveness → recovered`. This
    keeps outcomes realistic (not every correctly-selected case "succeeds") while remaining fully
    reproducible for a given seed and free of external cost, latency, or rate-limit exposure.
 3. Every case still writes real `recovery_cases`, `recovery_actions`, and `audit_logs` documents,

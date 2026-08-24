@@ -2,7 +2,7 @@
 // GET /api/recovery-cases[/:id], POST /api/recovery-cases/:id/evaluate,
 // POST /api/recovery-cases/:id/simulate-action, GET /api/dashboard/summary. Exercises the real
 // app (server/src/app.js) against an in-memory MongoDB, per tests/testUtils/testServer.js.
-// No OpenAI, no Razorpay — CLAUDE.md § Day 3 objective.
+// No Gemini, no Razorpay — CLAUDE.md § Day 3 objective.
 
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";

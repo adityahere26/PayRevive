@@ -8,9 +8,10 @@ payrevive's agentic loop has one fixed shape, everywhere AI is involved:
 Customer input (voice transcript / typed text)
         │
         ▼
-AI Decision/Planner            OpenAI API call, structured output only (JSON schema mode).
-        │                      Produces a candidate {intent, recommendedAction, confidence,
-        │                      reasonCodes, requiresHumanReview} — see § AI output contract.
+AI Decision/Planner            Gemini API call, structured output only (responseSchema /
+        │                      responseMimeType: application/json). Produces a candidate
+        │                      {intent, recommendedAction, confidence, reasonCodes,
+        │                      requiresHumanReview} — see § AI output contract.
         ▼
 Deterministic policy/guardrail engine   Eligibility Engine + Policy Engine (RECOVERY_POLICY.md),
         │                                both built on ONE shared precedence function. Approves,
@@ -37,9 +38,12 @@ from "deterministic policy/guardrail engine" onward is plain backend code with n
 loop. This is true for every AI call in the system — currently, the only live instance of the AI
 Decision/Planner is the Voice Intent Classifier (module 8 below).
 
-**Runtime AI provider: OpenAI, exclusively.** Claude Code is the development-time coding
-assistant used to build payrevive; it has no runtime role and is never called from application
-code. See `CLAUDE.md` § AI provider.
+**Runtime AI provider: Google Gemini, exclusively**, via the official `@google/genai` SDK.
+Claude Code is the development-time coding assistant used to build payrevive; it has no runtime
+role and is never called from application code. See `CLAUDE.md` § AI provider.
+
+The model is not the policy engine, not the executor, and not the authorization layer — it
+cannot bypass merchant policy. See § Provider abstraction below for how this is enforced in code.
 
 ## Why the Planner doesn't run its own tool-calling loop
 
@@ -70,12 +74,12 @@ audited executor) — it just doesn't hold the keys itself.
 
 To be explicit about what "AI" means in this product:
 
-- **Hinglish voice intent classification** — a real OpenAI API call, constrained to the structured
+- **Hinglish voice intent classification** — a real Gemini API call, constrained to the structured
   output contract below. This is genuine natural-language understanding work a rule engine cannot
   do well, and it is the product's actual AI differentiator.
 - **Decision-factor explanation text (P1, optional)** — a short natural-language sentence
   summarizing already-computed reason codes for the case detail page's "Why this action?" panel,
-  also via the OpenAI API. Purely descriptive; it does not decide anything.
+  also via the Gemini API. Purely descriptive; it does not decide anything.
 - Root cause classification, eligibility, recovery scoring, intervention selection, and policy
   enforcement are **all deterministic rule/formula-based code**, not model calls. This is
   intentional (see above), not a limitation to apologize for — it's what makes the system
@@ -92,7 +96,7 @@ To be explicit about what "AI" means in this product:
 | 5 | Intervention Selector | deterministic | Picks among already-eligible interventions by score + root cause; does **not** re-check amount/window/attempts — see § HIGH_VALUE ownership |
 | 6 | Policy Engine | deterministic | Re-runs the same shared precedence function (steps 1–5, now including the candidate action) as the final authoritative gate immediately before execution |
 | 7 | Action Executor | deterministic | Executes only allowlisted, policy-approved actions via the backend service functions ("tools") below. The only module with Razorpay credentials and MongoDB write access |
-| 8 | Voice Intent Classifier | **AI Decision/Planner** | OpenAI API call, transcript → structured intent object, schema-validated |
+| 8 | Voice Intent Classifier | **AI Decision/Planner** | Gemini API call, transcript → structured intent object, schema-validated |
 | 9 | Outcome Evaluator | deterministic | Reads webhook/payment status, resolves `WAITING_OUTCOME` → `RECOVERED` / `FAILED`; `FAILED` re-enters module 3, never module 5 directly — see `ARCHITECTURE.md` § Payment state machine |
 | 10 | Audit Logger | deterministic | Writes an `audit_logs` entry for every transition and decision above |
 
@@ -146,10 +150,45 @@ The AI Decision/Planner never calls these directly and never receives credential
 or MongoDB itself. It returns a structured recommendation; deterministic code decides which of
 these functions, if any, to call.
 
+## Provider abstraction
+
+Business logic depends on an internal `AIProvider` interface, never on the Gemini SDK directly —
+this is what makes the provider replaceable later without rewriting the Recovery Engine:
+
+```
+server/src/ai/
+  provider.js           getAIProvider() → the AIProvider interface (currently always Gemini)
+  schema.js              AI_DECISION_SCHEMA (ajv), ACTION_ALLOWLIST-derived enum, SAFE_FALLBACK_DECISION
+  gemini/
+    client.js             the ONLY file that imports @google/genai; reads GEMINI_API_KEY,
+                           exposes generateStructuredContent(prompt, responseSchema)
+    planner.js             GeminiProvider's planRecoveryDecision(context): builds a constrained
+                           prompt from an explicit field allowlist, calls client.js, parses +
+                           independently re-validates the response, and NEVER throws — any
+                           failure (missing key, timeout, malformed JSON, schema violation)
+                           resolves to SAFE_FALLBACK_DECISION (`recommendedAction: "ESCALATE"`)
+```
+
+```
+AIProvider
+    ↓
+GeminiProvider   (the only implementation today)
+```
+
+The planner's `recommendedAction` is drawn from the same `ACTION_ALLOWLIST` the deterministic
+Policy Engine already enforces (`policy/policyPrecedence.js`), plus `ASK_CLARIFICATION` (a
+non-executable "no action" signal) — so the model cannot express a novel action even before the
+Policy Engine's own structural allowlist check runs a second time. As of this migration, the
+planner module exists and is fully tested but is **not yet wired into any live route** — voice
+(the next phase) is what will call it in production; see `SPEC.md` § non-goals and the migration
+task that introduced this module for the reasoning.
+
 ## AI output contract
 
-Applies to every OpenAI call in the system (currently: Voice Intent Classifier), enforced via
-OpenAI's structured output / JSON schema mode plus independent server-side ajv validation:
+Applies to every Gemini call in the system (currently: Voice Intent Classifier and the recovery
+Decision/Planner — `server/src/ai/schema.js`), enforced via Gemini's structured output
+(`responseSchema`/`responseMimeType: application/json`) plus independent server-side ajv
+validation:
 
 ```json
 {
@@ -162,7 +201,7 @@ OpenAI's structured output / JSON schema mode plus independent server-side ajv v
 ```
 
 - Validated server-side against a JSON schema (ajv) before any code reads it, independent of
-  OpenAI's own schema enforcement — defense in depth, not trust.
+  Gemini's own schema enforcement — defense in depth, not trust.
 - Any field outside the enumerated values, missing required fields, or malformed JSON is a hard
   reject — the session falls back to `UNCLEAR` and asks the customer to repeat/clarify, it never
   guesses.
@@ -192,7 +231,7 @@ POST /api/recovery-cases/:id/voice-intent  { transcript }
 Backend: load case (merchant/session-scoped) + build constrained prompt
    │  (case amount, status, customer name — never the transcript alone, never credentials)
    ▼
-OpenAI API call (structured output) → ajv validation (reject/re-ask on failure)
+Gemini API call (structured output) → ajv validation (reject/re-ask on failure)
    ▼
 Deterministic mapping: classified intent → candidate action
    │  (still passes through Intervention Selector + Policy Engine — see § Agent architecture)
@@ -229,7 +268,7 @@ local session state.
 Customer transcripts (and any future free-text input) are **data passed as content, never as
 instructions**. Concretely:
 
-- The OpenAI call uses a fixed system prompt that defines the classification task and output
+- The Gemini call uses a fixed system prompt that defines the classification task and output
   schema; the transcript is inserted as user-turn content to be classified, not as instructions
   the model should obey.
 - The model's job is narrowly "classify this utterance," not "decide what to do" — so even a

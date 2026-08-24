@@ -1,8 +1,9 @@
 // Pure unit tests for the individual deterministic pipeline modules (AGENT_DESIGN.md § The
 // ten modules) that don't need a database: state transitions, root cause lookup, scoring
 // formula, intervention selection, eligibility engine, and the simulated action executor.
-// No OpenAI, no Razorpay, no HTTP — CLAUDE.md § Day 3 objective ("the system must work
-// WITHOUT OpenAI") and EVALUATION.md's determinism principle applied at the unit level.
+// No Gemini, no Razorpay, no HTTP — CLAUDE.md § Day 3 objective ("the system must work
+// WITHOUT the runtime AI provider") and EVALUATION.md's determinism principle applied at the
+// unit level.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

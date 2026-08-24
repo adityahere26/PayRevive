@@ -42,7 +42,7 @@ Security model: `SECURITY.md`.
   selection, policy engine execution) — `AGENT_DESIGN.md`'s ten modules are documented, not
   built.
 - Razorpay integration (payment links, webhooks).
-- Hinglish voice recovery (OpenAI integration).
+- Hinglish voice recovery (Google Gemini integration).
 - The batch evaluation engine.
 - Real merchant registration/login (only the demo entry point exists).
 - All page content beyond the Dashboard's live health check — the other 7 pages are
@@ -52,18 +52,31 @@ Security model: `SECURITY.md`.
 
 ```
 Browser → React/Vite frontend (client/) → Express backend (server/) → MongoDB Atlas
-                                                ↓ (not yet implemented)
-                                    Razorpay Test Mode · OpenAI API
+                                                ↓ (not yet wired to a live route)
+                                    Razorpay Test Mode · Gemini API (@google/genai)
 ```
 
 - `client/` — React + Vite + Tailwind CSS, plain JavaScript. Own `package.json`.
 - `server/` — Express + Mongoose backend. Shares the repository-root `package.json` with
   `tests/` and (later) `evaluation/`.
 - `tests/` — `node:test` suites; DB-dependent tests run against an in-memory MongoDB
-  (`mongodb-memory-server`, a devDependency) so they never require real Atlas credentials.
+  (`mongodb-memory-server`, a devDependency) so they never require real Atlas credentials, and
+  the Gemini provider boundary is tested with a mocked provider (never a real `GEMINI_API_KEY`
+  or network call) — see `tests/aiProvider.test.js`.
 - `evaluation/` — not implemented yet (Day 6).
 
 Full detail: `ARCHITECTURE.md`.
+
+### Technology / runtime architecture
+
+| Layer | Role |
+|---|---|
+| **Claude Code** | Development tool only — writes code, docs, tests. No runtime role. See `CLAUDE.md` § AI provider. |
+| **Google Gemini** (`@google/genai`) | payrevive's runtime AI planner — the recovery Decision/Planner and (later) Hinglish voice intent classification. Server-side only, advisory-only output; the deterministic Policy Engine remains the final authority. See `AGENT_DESIGN.md` § Provider abstraction. |
+| **MongoDB (Atlas)** | Persistent storage for all collections — merchants, customers, payments, recovery cases, audit logs, etc. |
+| **Razorpay** | Payment integration — Test Mode Payment Links + webhook (not yet implemented). |
+| **React / Vite** | Frontend — dashboard, recovery case views. |
+| **Express** | Backend — API routes, deterministic recovery pipeline, auth, rate limiting. |
 
 ## Prerequisites
 
@@ -100,7 +113,7 @@ Backend (`.env`, see `.env.example` for the full annotated list):
 | `MONGODB_URI` | yes | MongoDB Atlas connection string |
 | `JWT_SECRET` | yes | long random value; never reuse across environments |
 | `CLIENT_URL` | yes | frontend origin, used for the CORS allowlist |
-| `OPENAI_API_KEY` | not yet | needed starting the voice recovery phase |
+| `GEMINI_API_KEY` | not yet | server-side only; needed once the Gemini-backed voice/planner phase is wired into a live route (`@google/genai` SDK) |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | not yet | needed starting the Razorpay integration phase |
 
 Frontend (`client/.env.local`):
@@ -133,8 +146,9 @@ npm test
 Runs the full `node:test` suite in `tests/` (17 tests as of the Day 2 foundation): health
 endpoint, database-unreachable handling, demo authentication, JWT verification (valid,
 expired, invalid, wrong-secret), demo-auth rate limiting, merchant authorization/IDOR
-prevention, and request validation. All deterministic — no OpenAI or Razorpay credentials
-required; MongoDB-dependent tests run against an in-memory database.
+prevention, and request validation. All deterministic — no Gemini or Razorpay credentials
+required; MongoDB-dependent tests run against an in-memory database, and the Gemini provider
+boundary (`tests/aiProvider.test.js`) is exercised with a mocked provider.
 
 ## Deployment
 
