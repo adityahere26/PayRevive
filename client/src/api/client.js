@@ -83,6 +83,24 @@ export const api = {
   // Never sends any Razorpay credential — the browser never has one to send.
   createPaymentLink: (id) => request(`/recovery-cases/${id}/payment-link`, { method: "POST" }),
 
+  // EVALUATION.md § Batch evaluation engine — synthetic data only, never a real Razorpay/
+  // Gemini call. See server/src/routes/evaluation.js.
+  runEvaluation: (count) => request("/evaluation/run", { method: "POST", body: count ? { count } : {} }),
+  listEvaluationRuns: () => request("/evaluation"),
+  getEvaluationRun: (id) => request(`/evaluation/${id}`),
+
+  // AGENT_DESIGN.md § The ten modules (Audit Logger) — merchant-wide counterpart to
+  // getRecoveryCaseAudit above. Same AuditLog collection, no second audit system.
+  listAuditLog: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/audit-log${query ? `?${query}` : ""}`);
+  },
+
+  // RECOVERY_POLICY.md § Merchant policy fields. The Policy Engine reads merchant.policy
+  // fresh from the database on every pipeline run — no separate policy logic lives here.
+  getMerchantPolicy: () => request("/merchant/policy"),
+  updateMerchantPolicy: (policy) => request("/merchant/policy", { method: "PUT", body: policy }),
+
   // AGENT_DESIGN.md § Voice pipeline. Every call here goes to the payrevive backend, never
   // directly to Gemini — the browser never sees any Gemini credential (SECURITY.md § Gemini /
   // AI provider security).

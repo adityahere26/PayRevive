@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   PayRevive design tokens (Tailwind v4 @theme — generates bg-brand-600,
+   text-mint-700, etc. as real utility classes; nothing here is a separate
+   styling system, it's the same Tailwind pipeline every page already uses).
+
+   PRIMARY   -> brand-*   deep teal/navy — primary text, primary buttons,
+                          active nav, brand elements.
+   ACCENT    -> emerald-* (Tailwind's stock scale) — CTAs, success, positive
+                          metrics, progress.
+   SECONDARY -> mint-*    soft pale green — selected nav, icon chips, subtle
+                          highlight surfaces.
+   Status colors reuse stock Tailwind scales (emerald/amber/red/cyan/slate)
+   so they stay visually consistent with the rest of the palette instead of
+   introducing unrelated hues.
+   ========================================================================== */
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+
+  --color-brand-50: #f2faf8;
+  --color-brand-100: #e1f3ee;
+  --color-brand-200: #c3e7dd;
+  --color-brand-300: #97d4c3;
+  --color-brand-400: #63b8a3;
+  --color-brand-500: #3b9985;
+  --color-brand-600: #257d6c;
+  --color-brand-700: #1d6459;
+  --color-brand-800: #1a5049;
+  --color-brand-900: #163f3a;
+  --color-brand-950: #0b2622;
+
+  --color-mint-50: #f4fbf7;
+  --color-mint-100: #e4f6ed;
+  --color-mint-200: #c9ecda;
+  --color-mint-300: #a3dcc0;
+
+  --color-canvas: #f6f9f8;
+
+  --shadow-card: 0 1px 2px rgba(11, 38, 34, 0.04), 0 4px 16px -4px rgba(11, 38, 34, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(11, 38, 34, 0.05), 0 8px 24px -6px rgba(11, 38, 34, 0.09);
+}
+
+/* Global atmosphere — very soft mint/cyan glow fixed behind all page content.
+   Deliberately low-alpha and fixed (not per-page, not repeated on scroll) so
+   it reads as one continuous surface behind the whole product, not a
+   landing-page hero. */
+body {
+  background-color: var(--color-canvas);
+  background-image:
+    radial-gradient(60rem 32rem at 15% -10%, rgba(59, 153, 133, 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at 110% 10%, rgba(103, 210, 200, 0.06), transparent 55%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}

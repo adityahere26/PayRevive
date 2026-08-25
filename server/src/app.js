@@ -15,6 +15,9 @@ import { authRouter } from "./routes/auth.js";
 import { demoRouter } from "./routes/demo.js";
 import { recoveryCasesRouter } from "./routes/recoveryCases.js";
 import { dashboardRouter } from "./routes/dashboard.js";
+import { evaluationRouter } from "./routes/evaluation.js";
+import { auditLogRouter } from "./routes/auditLog.js";
+import { policyRouter } from "./routes/policy.js";
 import { webhooksRouter } from "./routes/webhooks.js";
 
 export function createApp() {
@@ -45,6 +48,9 @@ export function createApp() {
   app.use("/api/demo", demoRouter);
   app.use("/api/recovery-cases", recoveryCasesRouter);
   app.use("/api/dashboard", dashboardRouter);
+  app.use("/api/evaluation", evaluationRouter);
+  app.use("/api/audit-log", auditLogRouter);
+  app.use("/api/merchant/policy", policyRouter);
 
   app.use(notFound);
   app.use(errorHandler);
