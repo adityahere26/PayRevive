@@ -58,3 +58,43 @@ body {
 .shadow-card {
   box-shadow: var(--shadow-card);
 }
+
+/* ==========================================================================
+   Motion primitives (client/src/components/motion/) — a handful of named
+   keyframes shared by the whole product rather than redefined per page.
+   Scroll-reveal (RevealOnScroll) and cursor-parallax (ParallaxElement) are
+   driven by inline styles/transitions in JS, not keyframes, so they aren't
+   here; this covers the two continuous decorative animations (floating
+   elements, marquee) plus the reduced-motion opt-out for both.
+   ========================================================================== */
+@keyframes pr-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes pr-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.pr-float {
+  animation: pr-float 7s ease-in-out infinite;
+}
+.pr-marquee-track {
+  animation: pr-marquee linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-float,
+  .pr-marquee-track {
+    animation: none !important;
+  }
+}

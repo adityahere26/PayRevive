@@ -120,6 +120,76 @@ export function InboxIcon({ className }) {
   );
 }
 
+export function PhoneIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M5.5 4h3l1.5 4-2 1.3a11 11 0 005.7 5.7L14 13l4 1.5v3a1.5 1.5 0 01-1.6 1.5A15 15 0 014 5.6 1.5 1.5 0 015.5 4z" />
+    </Svg>
+  );
+}
+
+export function LinkIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M10 14a4.5 4.5 0 001.3.9l1.4.5a4.5 4.5 0 003.8-8.1l-1.2-.9" />
+      <path d="M14 10a4.5 4.5 0 00-1.3-.9l-1.4-.5a4.5 4.5 0 00-3.8 8.1l1.2.9" />
+      <path d="M9.5 14.5l5-5" />
+    </Svg>
+  );
+}
+
+export function UsersIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <circle cx="9" cy="8.5" r="3" />
+      <path d="M3.5 19a5.5 5.5 0 0111 0" />
+      <path d="M15.5 6.2a3 3 0 010 5.6" />
+      <path d="M17.5 13.5a5 5 0 013.2 4.8" />
+    </Svg>
+  );
+}
+
+export function XIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Svg>
+  );
+}
+
+export function ArrowRightIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </Svg>
+  );
+}
+
+export function ChevronDownIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function MenuIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Svg>
+  );
+}
+
+export function WaveformIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10v4M22 12h-1" />
+    </Svg>
+  );
+}
+
 export function SparkleIcon({ className }) {
   return (
     <Svg className={className}>

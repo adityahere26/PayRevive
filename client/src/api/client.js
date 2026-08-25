@@ -67,6 +67,12 @@ export const api = {
   me: () => request("/auth/me"),
 
   dashboardSummary: () => request("/dashboard/summary"),
+  // Business-owner Payments page — merchant-scoped overview + failed-payment list
+  // (server/src/routes/dashboard.js GET /payments-overview).
+  paymentsOverview: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/dashboard/payments-overview${query ? `?${query}` : ""}`);
+  },
 
   simulatePaymentFailure: (payload) =>
     request("/demo/payment-failure", { method: "POST", body: payload }),

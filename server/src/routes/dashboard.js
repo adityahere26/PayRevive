@@ -6,7 +6,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { requireAuth } from "../middleware/auth.js";
-import { RecoveryCase } from "../models/index.js";
+import { RecoveryCase, Customer, Payment } from "../models/index.js";
 
 export const dashboardRouter = Router();
 
@@ -78,6 +78,82 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       revenueByStatus,
       interventionBreakdown,
       recentCases,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/dashboard/payments-overview — powers the business-owner Payments page
+// (client/src/pages/Payments.jsx): a merchant-scoped count of clients/passed/failed payments,
+// plus the failed-payment list joined against each payment's own RecoveryCase (created 1:1 by
+// routes/demo.js's detectPaymentFailureRisk for every PAYMENT_FAILURE case — see
+// pipeline/riskDetector.js). Reads only; no business logic here that doesn't already live in
+// the models it queries — every intervention/status value shown is the pipeline's own.
+dashboardRouter.get("/payments-overview", async (req, res, next) => {
+  try {
+    const merchantId = new mongoose.Types.ObjectId(req.merchant.id);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+
+    const [totalClients, paymentsPassed, paymentsFailed, totalFailedPayments, failedPaymentDocs] =
+      await Promise.all([
+        Customer.countDocuments({ merchantId }),
+        Payment.countDocuments({ merchantId, status: "paid" }),
+        Payment.countDocuments({ merchantId, status: "failed" }),
+        Payment.countDocuments({ merchantId, status: "failed" }),
+        Payment.find({ merchantId, status: "failed" })
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit),
+      ]);
+
+    const customerIds = failedPaymentDocs.map((p) => p.customerId);
+    const paymentIds = failedPaymentDocs.map((p) => p._id);
+
+    const [customers, recoveryCases] = await Promise.all([
+      Customer.find({ merchantId, _id: { $in: customerIds } }),
+      RecoveryCase.find({ merchantId, paymentId: { $in: paymentIds } }),
+    ]);
+    const customerById = new Map(customers.map((c) => [String(c._id), c]));
+    const caseByPaymentId = new Map(recoveryCases.map((c) => [String(c.paymentId), c]));
+
+    const failedPayments = failedPaymentDocs.map((p) => {
+      const customer = customerById.get(String(p.customerId));
+      const recoveryCase = caseByPaymentId.get(String(p._id)) || null;
+      return {
+        paymentId: p._id,
+        customerId: p.customerId,
+        customerName: customer?.name || null,
+        customerEmail: customer?.email || null,
+        customerOptedOut: customer?.optedOut || false,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failureReason,
+        createdAt: p.createdAt,
+        recoveryCase: recoveryCase && {
+          id: recoveryCase._id,
+          status: recoveryCase.status,
+          selectedIntervention: recoveryCase.selectedIntervention,
+          policyDecision: recoveryCase.policyDecision,
+          recoveryProbability: recoveryCase.recoveryProbability,
+          attempts: recoveryCase.attempts,
+          voiceAttempts: recoveryCase.voiceAttempts,
+          recoveredAmount: recoveryCase.recoveredAmount,
+          razorpayPaymentLinkShortUrl: recoveryCase.razorpayPaymentLinkShortUrl,
+          recoveryWindowExpiresAt: recoveryCase.recoveryWindowExpiresAt,
+        },
+      };
+    });
+
+    res.status(200).json({
+      totalClients,
+      paymentsPassed,
+      paymentsFailed,
+      failedPayments,
+      totalFailedPayments,
+      page,
+      limit,
     });
   } catch (err) {
     next(err);
