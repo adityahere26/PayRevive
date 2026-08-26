@@ -14,6 +14,8 @@ import { PaymentCard3D } from "../../components/floating/PaymentCard3D.jsx";
 import { MoneyStack } from "../../components/floating/MoneyStack.jsx";
 import { PaymentLinkCard } from "../../components/floating/PaymentLinkCard.jsx";
 import { RecoveryFlowVisual } from "../../components/floating/RecoveryFlowVisual.jsx";
+import { MoneyTransferAnimation } from "../../components/floating/MoneyTransferAnimation.jsx";
+import { FloatingCoinField } from "../../components/floating/FloatingCoinField.jsx";
 import { Eyebrow, DemoTag } from "../../components/marketing/Eyebrow.jsx";
 import {
   ArrowRightIcon,
@@ -399,22 +401,31 @@ export default function Landing() {
       </section>
 
       {/* ===== HOW IT WORKS — soft blue-green gradient ===== */}
-      <section className="gradient-soft-teal py-24 sm:py-32">
+      <section className="gradient-soft-teal overflow-hidden py-24 sm:py-32">
         <div className="mx-auto max-w-5xl px-6 sm:px-8">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
-            <RevealOnScroll>
-              <Eyebrow>The loop</Eyebrow>
-              <h2 className="mt-5 max-w-xs text-4xl font-bold leading-[1.05] tracking-tight text-brand-900 sm:text-5xl">
-                How PayRevive works
-              </h2>
-              <Link
-                to="/how-it-works"
-                className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
-              >
-                See the full breakdown
-                <ArrowRightIcon className="h-3.5 w-3.5" />
-              </Link>
-            </RevealOnScroll>
+            <div className="relative h-full">
+              <RevealOnScroll>
+                <Eyebrow>The loop</Eyebrow>
+                <h2 className="mt-5 max-w-xs text-4xl font-bold leading-[1.05] tracking-tight text-brand-900 sm:text-5xl">
+                  How PayRevive works
+                </h2>
+                <Link
+                  to="/how-it-works"
+                  className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+                >
+                  See the full breakdown
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
+                </Link>
+              </RevealOnScroll>
+
+              {/* Empty lower-left negative space (this column is grid-stretched to match the
+                  taller steps list on the right) — a subtle animated money-transfer scene,
+                  desktop-only since the two-column split (and the empty area it creates) only
+                  exists at the lg breakpoint; below lg the layout stacks and this column's
+                  height matches its own content exactly. */}
+              <MoneyTransferAnimation className="absolute inset-x-0 bottom-0 hidden h-56 lg:block" />
+            </div>
 
             <StaggerChildren className="space-y-10" step={100}>
               {STORY_STEPS.map((s) => (
@@ -592,7 +603,9 @@ export default function Landing() {
 
       {/* ===== FLOATING REVIEWS / SOCIAL PROOF ===== */}
       <section className="gradient-atmosphere glow-field relative overflow-hidden py-32 sm:py-40">
-        <div className="mx-auto max-w-3xl px-6 sm:px-8">
+        <FloatingCoinField />
+
+        <div className="relative mx-auto max-w-3xl px-6 sm:px-8">
           <RevealOnScroll>
             <Eyebrow>In their words</Eyebrow>
             <h2 className="mt-5 max-w-md text-4xl font-bold leading-[1.05] tracking-tight text-brand-950 sm:text-5xl">
@@ -609,29 +622,6 @@ export default function Landing() {
           {REVIEW_BUBBLES.map((b, i) => (
             <FloatingReview key={b.name} {...b} delay={i * 0.8} />
           ))}
-        </div>
-      </section>
-
-      {/* ===== PRICING TEASER ===== */}
-      <section className="hairline-light border-y bg-mint-50/50 py-16">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <RevealOnScroll className="max-w-md">
-            <Eyebrow>Pricing</Eyebrow>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">Simple, honest pricing</h2>
-            <p className="mt-2.5 text-sm text-slate-500">
-              Final pricing isn&rsquo;t set yet — we&rsquo;d rather tell you that plainly than
-              make something up.
-            </p>
-          </RevealOnScroll>
-          <RevealOnScroll delay={80}>
-            <Link
-              to="/pricing"
-              className="inline-flex items-center gap-2 rounded-full border border-brand-950 px-6 py-3 text-sm font-semibold text-brand-950 transition-colors hover:bg-brand-950 hover:text-white"
-            >
-              See pricing details
-              <ArrowRightIcon className="h-3.5 w-3.5" />
-            </Link>
-          </RevealOnScroll>
         </div>
       </section>
 

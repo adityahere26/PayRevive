@@ -6,7 +6,6 @@ import { MenuIcon, XIcon, ArrowRightIcon } from "../ui/icons.jsx";
 const NAV_LINKS = [
   { to: "/solutions", label: "Product" },
   { to: "/how-it-works", label: "How it works" },
-  { to: "/pricing", label: "Pricing" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];

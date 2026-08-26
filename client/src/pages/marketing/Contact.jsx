@@ -70,8 +70,8 @@ export default function Contact() {
             <Eyebrow>Contact</Eyebrow>
             <h1 className="mt-6 text-[clamp(2.5rem,6vw,5rem)] font-bold leading-[0.98] tracking-tight text-brand-900">Talk to us.</h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-slate-500">
-              Questions about pricing, policy, or how PayRevive fits your checkout — reach out
-              directly, or use the live demo to see it running first.
+              Questions about policy, or how PayRevive fits your checkout — reach out directly,
+              or use the live demo to see it running first.
             </p>
           </RevealOnScroll>
 

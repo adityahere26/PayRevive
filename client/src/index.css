@@ -261,6 +261,75 @@ body {
   animation: pr-marquee linear infinite;
 }
 
+/* Drift variants for FloatingCurrency (see `drift` prop) — used by FloatingCoinField so a
+   cluster of coins moves in varied directions/distances instead of every coin bobbing the
+   same vertical pr-float. Each replaces pr-float on the element that uses it (never combined
+   with it) so only one positional transform animation ever runs per element. */
+@keyframes pr-drift-diagonal-a {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(14px, -20px) rotate(9deg);
+  }
+}
+@keyframes pr-drift-diagonal-b {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(-16px, -13px) rotate(-7deg);
+  }
+}
+@keyframes pr-drift-horizontal {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(22px, 3px) rotate(3deg);
+  }
+}
+@keyframes pr-drift-up-fade {
+  0% {
+    transform: translate(0, 6px);
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, -26px);
+    opacity: 0.35;
+  }
+}
+.pr-drift-diagonal-a {
+  animation: pr-drift-diagonal-a ease-in-out infinite;
+}
+.pr-drift-diagonal-b {
+  animation: pr-drift-diagonal-b ease-in-out infinite;
+}
+.pr-drift-horizontal {
+  animation: pr-drift-horizontal ease-in-out infinite;
+}
+.pr-drift-up-fade {
+  animation: pr-drift-up-fade ease-in-out infinite alternate;
+}
+
+/* Very slow dash-offset creep for the faint curved paths behind the coin field / transfer
+   visual (brief "subtle dotted trails / faint curved motion paths") — one shared keyframe,
+   applied to an SVG <path> via the pr-dash-drift class. */
+@keyframes pr-dash-drift {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+.pr-dash-drift {
+  animation: pr-dash-drift 18s linear infinite;
+}
+
 /* One-shot entrance for hero decorative objects (brief §7 "on page load ... coins float into
    place, payment status card appears") — applied to a plain absolute-positioned wrapper
    *around* a floating component (see HeroReveal.jsx) so this transform never fights the
@@ -284,7 +353,12 @@ body {
   .pr-float,
   .pr-card-float,
   .pr-coin,
-  .pr-marquee-track {
+  .pr-marquee-track,
+  .pr-drift-diagonal-a,
+  .pr-drift-diagonal-b,
+  .pr-drift-horizontal,
+  .pr-drift-up-fade,
+  .pr-dash-drift {
     animation: none !important;
   }
   .pr-hero-in {

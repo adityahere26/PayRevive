@@ -16,6 +16,17 @@ const COIN_GRADIENT = {
   deep: "radial-gradient(circle at 32% 28%, #2a835f 0%, #12544f 55%, #092328 100%)",
 };
 
+// `drift` swaps the base positional keyframe (index.css) — "float" (default) is the original
+// vertical bob; the rest give a cluster of these varied, non-synchronized movement so a whole
+// field of coins (FloatingCoinField) doesn't read as one thing copy-pasted.
+const DRIFT_CLASS = {
+  float: "pr-float",
+  "diagonal-a": "pr-drift-diagonal-a",
+  "diagonal-b": "pr-drift-diagonal-b",
+  horizontal: "pr-drift-horizontal",
+  "up-fade": "pr-drift-up-fade",
+};
+
 export function FloatingCurrency({
   symbol = "₹",
   size = "text-4xl",
@@ -29,12 +40,14 @@ export function FloatingCurrency({
   circleClassName = "",
   coin = false,
   coinTone = "primary",
+  drift = "float",
 }) {
+  const driftClass = DRIFT_CLASS[drift] || DRIFT_CLASS.float;
   if (coin) {
     return (
       <ParallaxElement depth={depth} className={`pointer-events-none absolute select-none ${className}`} style={style}>
         <span
-          className={`pr-float pr-coin relative flex aspect-square items-center justify-center rounded-full font-bold text-white shadow-[0_14px_28px_-8px_rgba(9,35,40,0.5)] ring-1 ring-white/25 ${size}`}
+          className={`${driftClass} pr-coin relative flex aspect-square items-center justify-center rounded-full font-bold text-white shadow-[0_14px_28px_-8px_rgba(9,35,40,0.5)] ring-1 ring-white/25 ${size}`}
           style={{
             background: COIN_GRADIENT[coinTone] || COIN_GRADIENT.primary,
             animationDuration: `${floatSpeed}s`,
@@ -53,7 +66,7 @@ export function FloatingCurrency({
     <ParallaxElement depth={depth} className={`pointer-events-none absolute select-none ${className}`} style={style}>
       {circle ? (
         <span
-          className={`pr-float flex aspect-square items-center justify-center rounded-full border font-semibold ${size} ${tone} ${circleClassName}`}
+          className={`${driftClass} flex aspect-square items-center justify-center rounded-full border font-semibold ${size} ${tone} ${circleClassName}`}
           style={{ animationDuration: `${floatSpeed}s`, animationDelay: `${floatDelay}s` }}
           aria-hidden="true"
         >
@@ -61,7 +74,7 @@ export function FloatingCurrency({
         </span>
       ) : (
         <span
-          className={`pr-float block font-semibold ${size} ${tone}`}
+          className={`${driftClass} block font-semibold ${size} ${tone}`}
           style={{ animationDuration: `${floatSpeed}s`, animationDelay: `${floatDelay}s` }}
           aria-hidden="true"
         >

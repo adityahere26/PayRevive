@@ -14,7 +14,6 @@ import Landing from "./pages/marketing/Landing.jsx";
 import About from "./pages/marketing/About.jsx";
 import HowItWorks from "./pages/marketing/HowItWorks.jsx";
 import Solutions from "./pages/marketing/Solutions.jsx";
-import Pricing from "./pages/marketing/Pricing.jsx";
 import Contact from "./pages/marketing/Contact.jsx";
 import Login from "./pages/auth/Login.jsx";
 import Signup from "./pages/auth/Signup.jsx";
@@ -39,7 +38,6 @@ export default function App() {
           <Route path="/about" element={<About />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/solutions" element={<Solutions />} />
-          <Route path="/pricing" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
         </Route>
 
