@@ -10,6 +10,7 @@ import { Alert } from "../components/ui/Alert.jsx";
 import { EmptyState } from "../components/ui/EmptyState.jsx";
 import { SkeletonBlock } from "../components/ui/Skeleton.jsx";
 import { PhoneIcon, LinkIcon, UsersIcon, CheckCircleIcon, InboxIcon, AlertTriangleIcon } from "../components/ui/icons.jsx";
+import { Eyebrow } from "../components/marketing/Eyebrow.jsx";
 
 // New business-owner primary surface: "Show me all my payment activity and immediately help
 // me recover failed payments." Every number and row comes from GET /api/dashboard/payments-
@@ -143,11 +144,11 @@ function OverviewHero({ overview, loading, error, onRetry }) {
       ))}
 
       <div className="relative max-w-2xl">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-mint-200">
-          Revenue recovery console
-        </span>
-        <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl">
-          Payments
+        <Eyebrow tone="dark">Revenue recovery console</Eyebrow>
+        <h1 className="mt-4 text-3xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl">
+          See what went through.
+          <br />
+          Recover what didn't.
         </h1>
         <p className="mt-4 max-w-md text-base text-mint-100/90 sm:text-lg">
           Monitor every payment. Recover the ones that don't go through.
@@ -188,12 +189,12 @@ function OverviewHero({ overview, loading, error, onRetry }) {
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Passed</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Payments Passed</div>
               <div className="mt-1.5 text-3xl font-bold tracking-tight text-white">{passed}</div>
               {passedPct !== null && <div className="mt-1 text-xs text-mint-100/70">{passedPct}% of recent volume</div>}
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-amber-300">Failed</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-amber-300">Payments Failed</div>
               <div className="mt-1.5 text-3xl font-bold tracking-tight text-white">{failed}</div>
               <div className="mt-1 text-xs text-mint-100/70">need recovery attention</div>
             </div>
@@ -287,14 +288,26 @@ function FailedPaymentCard({ row, selected, selectable, onToggle }) {
 }
 
 function SelectionSummary({ rows }) {
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
   return (
-    <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
-      {rows.map((r) => (
-        <div key={r.paymentId} className="flex items-center justify-between text-sm">
-          <span className="text-slate-700">{r.customerName || "Unknown customer"}</span>
-          <span className="font-medium text-brand-900">{formatINR(r.amount)}</span>
+    <div>
+      <div className="flex items-baseline justify-between border-b border-slate-100 pb-3">
+        <div className="text-sm font-medium text-brand-900">
+          {rows.length} customer{rows.length === 1 ? "" : "s"} selected
         </div>
-      ))}
+        <div className="text-right">
+          <div className="text-2xl font-bold tracking-tight text-brand-950">{formatINR(total)}</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">total at risk</div>
+        </div>
+      </div>
+      <div className="mt-3 max-h-40 space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
+        {rows.map((r) => (
+          <div key={r.paymentId} className="flex items-center justify-between text-sm">
+            <span className="text-slate-700">{r.customerName || "Unknown customer"}</span>
+            <span className="font-medium text-brand-900">{formatINR(r.amount)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -310,13 +323,13 @@ function SelectionSummary({ rows }) {
 function CallAgentFlow({ rows, step, onCancel, onStart, liveStatuses }) {
   if (step === "confirm") {
     return (
-      <Card tone="mint" title="Start AI voice recovery" subtitle={`${rows.length} customer${rows.length === 1 ? "" : "s"} selected`}>
+      <Card tone="mint" title="Start AI voice recovery" subtitle="Review the selection, then confirm to begin.">
         <SelectionSummary rows={rows} />
         <div className="mt-4">
           <Alert tone="info">PayRevive will attempt AI voice recovery for the selected customers.</Alert>
         </div>
         <div className="mt-5 flex items-center gap-3">
-          <Button onClick={onStart}>Start AI Calls</Button>
+          <Button onClick={onStart} className="uppercase tracking-wide">Confirm Calls</Button>
           <button type="button" onClick={onCancel} className={buttonClasses({ variant: "tertiary" })}>Cancel</button>
         </div>
       </Card>
@@ -383,7 +396,7 @@ const LINK_OUTCOME_META = {
 function SendLinksFlow({ rows, step, results, processing, onCancel, onSend }) {
   if (step === "confirm") {
     return (
-      <Card tone="mint" title="Send Razorpay Test Mode payment links" subtitle={`${rows.length} customer${rows.length === 1 ? "" : "s"} selected`}>
+      <Card tone="mint" title="Send Razorpay Test Mode payment links" subtitle="Review the selection, then send.">
         <SelectionSummary rows={rows} />
         <div className="mt-4">
           <Alert tone="info">
@@ -580,7 +593,8 @@ export default function Payments() {
       <div className="relative overflow-hidden rounded-3xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">Failed payments</h2>
+            <Eyebrow>Recovery queue</Eyebrow>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">Failed Payments</h2>
             <p className="mt-1.5 max-w-xl text-sm text-slate-500">
               These customers may require recovery — select one or more to start an AI voice
               call or send a Razorpay Test Mode payment link.
@@ -639,7 +653,7 @@ export default function Payments() {
                   type="button"
                   onClick={() => openFlow("call")}
                   disabled={selected.size === 0}
-                  className={buttonClasses({ variant: "secondary", size: "sm" })}
+                  className={buttonClasses({ variant: "secondary", size: "sm", className: "uppercase tracking-wide" })}
                 >
                   <PhoneIcon className="h-3.5 w-3.5" />
                   Call Agent
@@ -648,7 +662,7 @@ export default function Payments() {
                   type="button"
                   onClick={() => openFlow("link")}
                   disabled={selected.size === 0}
-                  className={buttonClasses({ size: "sm" })}
+                  className={buttonClasses({ size: "sm", className: "uppercase tracking-wide" })}
                 >
                   <LinkIcon className="h-3.5 w-3.5" />
                   Send Payment Links

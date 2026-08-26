@@ -20,6 +20,38 @@ import { FileTextIcon, RefreshIcon } from "../components/ui/icons.jsx";
 
 const PAGE_LIMIT = 25;
 
+// Human labels for the real eventType strings the server actually writes (grepped from
+// server/src — REVENUE_RISK_DETECTED, ROOT_CAUSE_IDENTIFIED, RECOVERY_SCORED,
+// ELIGIBILITY_EVALUATED, AI_RECOMMENDATION_CREATED, INTERVENTION_SELECTED, POLICY_EVALUATED,
+// PAYMENT_LINK_CREATED/CREATION_FAILED, ACTION_SIMULATED, RAZORPAY_WEBHOOK_VERIFIED/REJECTED,
+// VOICE_SESSION_STARTED/ENDED, VOICE_INTENT_DETECTED, VOICE_RESPONSE_GENERATED,
+// MERCHANT_POLICY_UPDATED). Anything not in this map still renders — via humanize() — so a
+// future event type never breaks the page; nothing here is an invented stage the backend
+// doesn't actually emit.
+const EVENT_LABELS = {
+  REVENUE_RISK_DETECTED: "Payment Failed — Revenue At Risk",
+  ROOT_CAUSE_IDENTIFIED: "Root Cause Identified",
+  RECOVERY_SCORED: "Recovery Scored",
+  ELIGIBILITY_EVALUATED: "Eligibility Checked",
+  AI_RECOMMENDATION_CREATED: "AI Recommendation Created",
+  INTERVENTION_SELECTED: "Intervention Selected",
+  POLICY_EVALUATED: "Policy Evaluated",
+  PAYMENT_LINK_CREATED: "Payment Link Created",
+  PAYMENT_LINK_CREATION_FAILED: "Payment Link Creation Failed",
+  ACTION_SIMULATED: "Action Simulated",
+  RAZORPAY_WEBHOOK_VERIFIED: "Razorpay Webhook Verified",
+  RAZORPAY_WEBHOOK_REJECTED: "Razorpay Webhook Rejected",
+  VOICE_SESSION_STARTED: "Voice Session Started",
+  VOICE_INTENT_DETECTED: "Voice Intent Detected",
+  VOICE_RESPONSE_GENERATED: "Voice Response Generated",
+  VOICE_SESSION_ENDED: "Voice Session Ended",
+  MERCHANT_POLICY_UPDATED: "Merchant Policy Updated",
+};
+
+function eventLabel(eventType) {
+  return EVENT_LABELS[eventType] || humanize(eventType) || eventType;
+}
+
 // Some audit entries carry a RecoveryCase status as their `result` (e.g. ELIGIBILITY_EVALUATED,
 // POLICY_EVALUATED) — render those with the same StatusBadge the rest of the app uses. Others
 // carry a probability, an intervention name, or a free-text outcome — render as plain text.
@@ -35,6 +67,44 @@ function SourceTag({ metadata }) {
   if (metadata?.live) return <Badge tone="brand" size="sm">Razorpay Test Mode</Badge>;
   if (metadata?.simulated) return <Badge tone="slate" size="sm">Simulated</Badge>;
   return null;
+}
+
+// One event in the editorial timeline. Deliberately not a fixed 7-stage pipeline diagram —
+// not every case reaches every stage (a STOPPED case never sees a webhook; a payment-link
+// case never sees a voice event) — so this renders exactly the real events the API returned,
+// in order, with a connecting rail. Hover reveals the raw eventType + full timestamp.
+function TimelineRow({ entry }) {
+  return (
+    <li className="group relative border-b border-brand-900/8 py-5 pl-8 last:border-0 sm:pl-10">
+      <span className="absolute left-0 top-6 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 border-white bg-brand-400 ring-1 ring-brand-900/10 group-hover:bg-emerald-500 sm:left-1" />
+      <span className="absolute left-[3px] top-8 bottom-0 w-px bg-brand-900/8 sm:left-[7px]" />
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[15px] font-semibold tracking-tight text-brand-950">{eventLabel(entry.eventType)}</span>
+            <SourceTag metadata={entry.metadata} />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+            <span>{humanize(entry.reason) || entry.reason || "No reason recorded"}</span>
+            {entry.caseId && (
+              <Link to={`/recovery-cases/${entry.caseId}`} className="font-mono text-[11px] text-slate-400 hover:text-brand-700 hover:underline">
+                {entry.caseId}
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <ResultCell result={entry.result} />
+          <span className="label-mono text-[10px] text-slate-400">
+            {new Date(entry.timestamp).toLocaleString()}
+          </span>
+        </div>
+      </div>
+      <div className="label-mono mt-0 max-h-0 overflow-hidden text-[10px] text-slate-300 opacity-0 transition-all duration-300 group-hover:mt-2 group-hover:max-h-6 group-hover:opacity-100">
+        {entry.eventType}
+      </div>
+    </li>
+  );
 }
 
 export default function AuditTrail() {
@@ -75,12 +145,13 @@ export default function AuditTrail() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        title="Audit Trail"
+        eyebrow={<span className="label-mono text-xs font-medium text-slate-400">AUDIT TRAIL</span>}
+        title="Every decision, on the record."
         description="Every detection, decision, policy check, and action across all recovery cases — in order, merchant-scoped, and never editable."
         actions={
-          <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-brand-800 shadow-sm hover:bg-mint-50">
+          <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-full border border-brand-900/15 bg-white px-3.5 py-1.5 text-xs font-medium text-brand-800 shadow-sm hover:border-brand-400">
             <RefreshIcon className="h-3.5 w-3.5" />
             Refresh
           </button>
@@ -89,7 +160,7 @@ export default function AuditTrail() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm text-slate-600">
+          <label className="label-mono text-[11px] text-slate-500">
             Event type
             <select
               value={eventTypeFilter}
@@ -97,25 +168,25 @@ export default function AuditTrail() {
                 setEventTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="mt-1 block w-56 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+              className="mt-2 block w-56 rounded-lg border border-slate-200 px-3 py-1.5 font-sans text-sm normal-case tracking-normal text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
             >
               <option value="">All event types</option>
               {eventTypes.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {eventLabel(t)}
                 </option>
               ))}
             </select>
           </label>
           <form onSubmit={handleSearchSubmit} className="flex items-end gap-2">
-            <label className="text-sm text-slate-600">
+            <label className="label-mono text-[11px] text-slate-500">
               Search reason / result
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="e.g. HIGH_VALUE, APPROVED…"
-                className="mt-1 block w-56 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                className="mt-2 block w-56 rounded-lg border border-slate-200 px-3 py-1.5 font-sans text-sm normal-case tracking-normal text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
               />
             </label>
             <Button type="submit" variant="secondary" size="md">Search</Button>
@@ -133,7 +204,7 @@ export default function AuditTrail() {
               Clear filters
             </button>
           )}
-          <span className="ml-auto text-xs text-slate-400">{total} event{total === 1 ? "" : "s"}</span>
+          <span className="label-mono ml-auto text-[11px] text-slate-400">{total} event{total === 1 ? "" : "s"}</span>
         </div>
       </Card>
 
@@ -162,45 +233,14 @@ export default function AuditTrail() {
       )}
 
       {events && events.length > 0 && (
-        <Card bodyClassName="-mx-6 -mb-2 overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-2 font-medium">Time</th>
-                <th className="px-6 py-2 font-medium">Case</th>
-                <th className="px-6 py-2 font-medium">Event</th>
-                <th className="px-6 py-2 font-medium">Reason</th>
-                <th className="px-6 py-2 font-medium">Result</th>
-                <th className="px-6 py-2 font-medium">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((entry) => (
-                <tr key={entry._id} className="border-b border-slate-50 transition-colors last:border-0 hover:bg-mint-50/60">
-                  <td className="whitespace-nowrap px-6 py-2.5 text-slate-500">{new Date(entry.timestamp).toLocaleString()}</td>
-                  <td className="px-6 py-2.5">
-                    {entry.caseId ? (
-                      <Link to={`/recovery-cases/${entry.caseId}`} className="font-mono text-xs text-slate-600 hover:text-brand-700 hover:underline">
-                        {entry.caseId}
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-slate-400">merchant-level</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-2.5 font-mono text-xs text-slate-700">{entry.eventType}</td>
-                  <td className="px-6 py-2.5 text-slate-500">{humanize(entry.reason) || entry.reason || "—"}</td>
-                  <td className="px-6 py-2.5">
-                    <ResultCell result={entry.result} />
-                  </td>
-                  <td className="px-6 py-2.5">
-                    <SourceTag metadata={entry.metadata} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
-            <span className="text-xs text-slate-400">
+        <Card bodyClassName="-mt-2">
+          <ol>
+            {events.map((entry) => (
+              <TimelineRow key={entry._id} entry={entry} />
+            ))}
+          </ol>
+          <div className="flex items-center justify-between border-t border-brand-900/10 pt-4">
+            <span className="label-mono text-[11px] text-slate-400">
               Page {page} of {totalPages}
             </span>
             <div className="flex gap-2">

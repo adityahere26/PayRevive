@@ -1,6 +1,8 @@
 const TONE_CLASS = {
   mint: "bg-mint-100 text-brand-800 border-brand-200",
   dark: "bg-white/10 text-mint-100 border-white/20",
+  amber: "bg-amber-500/15 text-amber-200 border-amber-400/30",
+  emerald: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30",
 };
 
 // Small floating decorative label (e.g. "AI DECISION", "POLICY CHECKED") — text only, no

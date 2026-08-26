@@ -8,35 +8,42 @@ const FOOTER_LINKS = [
   { to: "/contact", label: "Contact" },
 ];
 
+// Large editorial black footer — a closing statement, not a small conventional link list.
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-slate-200/70 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+    <footer className="bg-brand-950 text-white">
+      <div className="mx-auto max-w-6xl px-6 py-24 sm:px-8 sm:py-32">
+        <h2 className="max-w-3xl text-5xl font-semibold leading-[0.98] tracking-tight sm:text-7xl lg:text-8xl">
+          Recover what
+          <span className="block text-mint-300">can be recovered.</span>
+        </h2>
+
+        <div className="hairline-dark mt-16 flex flex-col gap-10 border-t pt-10 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xs">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white">
+            <Link to="/" className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold text-brand-950">
                 P
               </span>
-              <span className="text-[15px] font-semibold tracking-tight text-brand-900">payrevive</span>
+              <span className="label-mono text-xs font-semibold">PAYREVIVE</span>
             </Link>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500">
+            <p className="mt-4 text-sm leading-relaxed text-white/50">
               Detect revenue at risk. Recover what can be recovered. Stop when it should.
             </p>
           </div>
-          <nav className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-500">
+          <nav className="label-mono flex flex-wrap gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.14em] text-white/60">
             {FOOTER_LINKS.map((l) => (
-              <Link key={l.to} to={l.to} className="hover:text-brand-800">
+              <Link key={l.to} to={l.to} className="hover:text-white">
                 {l.label}
               </Link>
             ))}
           </nav>
         </div>
-        <div className="mt-10 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-slate-400">
-            © {new Date().getFullYear()} payrevive — Razorpay AI Buildathon, Track 03: AI Revenue Recovery.
+
+        <div className="hairline-dark mt-10 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <span className="label-mono text-[11px] text-white/40">
+            © {new Date().getFullYear()} PAYREVIVE — RAZORPAY AI BUILDATHON, TRACK 03: AI REVENUE RECOVERY
           </span>
-          <Link to="/demo" className="text-xs font-medium text-brand-700 hover:text-brand-900">
+          <Link to="/demo" className="text-xs font-medium text-mint-300 hover:text-mint-200">
             Skip sign-up — view the live demo →
           </Link>
         </div>

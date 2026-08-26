@@ -5,12 +5,13 @@ import { Eyebrow } from "../../components/marketing/Eyebrow.jsx";
 import { Alert } from "../../components/ui/Alert.jsx";
 import { Button, buttonClasses } from "../../components/ui/Button.jsx";
 import { api, setToken } from "../../api/client.js";
+import { authInputClass, authLabelClass, authCheckboxClass } from "./authField.js";
 
 // UI shell only — see Login.jsx's note. Full client-side validation (including a real password
 // strength check) runs before submit; the submit itself has nothing to call, so it never claims
 // an account was created. "Continue with live demo" is the one real, working path from here.
 function passwordStrength(pw) {
-  if (!pw) return { label: "", pct: 0, tone: "bg-slate-200" };
+  if (!pw) return { label: "", pct: 0, tone: "bg-brand-200" };
   let score = 0;
   if (pw.length >= 8) score += 1;
   if (pw.length >= 12) score += 1;
@@ -62,17 +63,19 @@ export default function Signup() {
       eyebrow={<Eyebrow>Get started</Eyebrow>}
       title="Create your account"
       subtitle="Account creation isn't live in this preview build — use the demo below to explore the product today."
+      statement="Recover revenue before it's lost."
+      statementSupport="PayRevive detects failed payments, decides the safest recovery action, and helps you recover automatically."
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-brand-700 hover:text-brand-900">
+          <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
             Log in
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Name
           <input
             type="text"
@@ -80,20 +83,20 @@ export default function Signup() {
             autoComplete="name"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Business name
           <input
             type="text"
             required
             value={form.business}
             onChange={(e) => setForm((f) => ({ ...f, business: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Email
           <input
             type="email"
@@ -101,10 +104,10 @@ export default function Signup() {
             autoComplete="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Password
           <input
             type="password"
@@ -113,24 +116,24 @@ export default function Signup() {
             autoComplete="new-password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
           {form.password && (
             <div className="mt-1.5">
-              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-brand-100">
                 <div className={`h-full rounded-full transition-all ${strength.tone}`} style={{ width: `${strength.pct}%` }} />
               </div>
-              <div className="mt-1 text-[11px] text-slate-400">{strength.label}</div>
+              <div className="mt-1 text-[11px] text-brand-400">{strength.label}</div>
             </div>
           )}
         </label>
-        <label className="flex items-start gap-2 text-xs text-slate-500">
+        <label className="flex items-start gap-2 text-xs text-brand-500">
           <input
             type="checkbox"
             required
             checked={form.agree}
             onChange={(e) => setForm((f) => ({ ...f, agree: e.target.checked }))}
-            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-brand-700 focus:ring-brand-400"
+            className={`mt-0.5 ${authCheckboxClass}`}
           />
           I agree to the terms of service and privacy policy.
         </label>
@@ -152,7 +155,7 @@ export default function Signup() {
         </div>
       )}
 
-      <div className="mt-6 border-t border-slate-100 pt-6">
+      <div className="mt-6 border-t border-brand-900/10 pt-6">
         <button type="button" onClick={handleDemo} disabled={demoStatus === "loading"} className={buttonClasses({ variant: "secondary", className: "w-full" })}>
           {demoStatus === "loading" ? "Entering demo…" : "Continue with live demo"}
         </button>

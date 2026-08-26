@@ -1,62 +1,92 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /* ==========================================================================
-   PayRevive design tokens (Tailwind v4 @theme — generates bg-brand-600,
-   text-mint-700, etc. as real utility classes; nothing here is a separate
+   PayRevive design tokens (Tailwind v4 @theme — generates bg-ink-900,
+   text-mint-300, etc. as real utility classes; nothing here is a separate
    styling system, it's the same Tailwind pipeline every page already uses).
 
-   PRIMARY   -> brand-*   deep teal/navy — primary text, primary buttons,
-                          active nav, brand elements.
+   Design language: editorial black/white/off-white with a single restrained
+   vivid-green accent, derived from the Cyrclo Webflow template's structural
+   DNA (near-black primary surface, hairline white-alpha borders, pill
+   buttons, generous section rhythm, wide containers) layered with
+   PayRevive's own green as the sole accent color — see repo history for the
+   session that migrated off the previous teal/mint dashboard palette.
+
+   PRIMARY   -> brand-*   near-black/graphite "ink" scale — primary text,
+                          primary surfaces, dark sections, buttons.
    ACCENT    -> emerald-* (Tailwind's stock scale) — CTAs, success, positive
-                          metrics, progress.
-   SECONDARY -> mint-*    soft pale green — selected nav, icon chips, subtle
-                          highlight surfaces.
-   Status colors reuse stock Tailwind scales (emerald/amber/red/cyan/slate)
-   so they stay visually consistent with the rest of the palette instead of
-   introducing unrelated hues.
+                          metrics, progress, selected states.
+   SECONDARY -> mint-*    the SAME green hue as the accent, in paler/mid
+                          tints — soft highlight surfaces, accent text on
+                          dark backgrounds, badges.
+   Status colors reuse stock Tailwind scales (amber/red/cyan/slate) for
+   semantic meaning (risk/failure/in-progress/neutral) — these are
+   functional, not decorative, and are deliberately kept distinct from the
+   brand accent so a status is never ambiguous with "this is the CTA color."
    ========================================================================== */
 @theme {
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+  --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --color-brand-50: #f2faf8;
-  --color-brand-100: #e1f3ee;
-  --color-brand-200: #c3e7dd;
-  --color-brand-300: #97d4c3;
-  --color-brand-400: #63b8a3;
-  --color-brand-500: #3b9985;
-  --color-brand-600: #257d6c;
-  --color-brand-700: #1d6459;
-  --color-brand-800: #1a5049;
-  --color-brand-900: #163f3a;
-  --color-brand-950: #0b2622;
+  /* Ink — near-black/graphite. brand-700 (#1f1f1f) matches the reference's own
+     primary dark-surface token exactly; 950 is true black for full-bleed
+     dark sections. */
+  --color-brand-50: #f7f7f7;
+  --color-brand-100: #ececec;
+  --color-brand-200: #dcdcdc;
+  --color-brand-300: #bfbfbf;
+  --color-brand-400: #969696;
+  --color-brand-500: #707070;
+  --color-brand-600: #4d4d4d;
+  --color-brand-700: #1f1f1f;
+  --color-brand-800: #141414;
+  --color-brand-900: #0a0a0a;
+  --color-brand-950: #000000;
 
-  --color-mint-50: #f4fbf7;
-  --color-mint-100: #e4f6ed;
-  --color-mint-200: #c9ecda;
-  --color-mint-300: #a3dcc0;
+  /* The single PayRevive green, in paler/mid tints — used as accent text on
+     dark surfaces (mint-200/300) and as soft tinted surfaces on light ones
+     (mint-50/100). The vivid, saturated version of the same hue is
+     Tailwind's stock emerald-500/600, used directly for CTAs and success. */
+  --color-mint-50: #eefbf3;
+  --color-mint-100: #d3f5e0;
+  --color-mint-200: #a3ebc0;
+  --color-mint-300: #6ee0a0;
 
-  --color-canvas: #f6f9f8;
+  --color-canvas: #f7f7f5;
 
-  --shadow-card: 0 1px 2px rgba(11, 38, 34, 0.04), 0 4px 16px -4px rgba(11, 38, 34, 0.06);
-  --shadow-card-hover: 0 2px 4px rgba(11, 38, 34, 0.05), 0 8px 24px -6px rgba(11, 38, 34, 0.09);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03), 0 6px 20px -8px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.04), 0 12px 28px -8px rgba(0, 0, 0, 0.1);
 }
 
-/* Global atmosphere — very soft mint/cyan glow fixed behind all page content.
-   Deliberately low-alpha and fixed (not per-page, not repeated on scroll) so
-   it reads as one continuous surface behind the whole product, not a
-   landing-page hero. */
+/* Flat off-white canvas — no color glow. The old build ran a soft mint/cyan
+   radial gradient behind every page; the editorial system relies on real
+   black/white section contrast instead of an ambient tint. */
 body {
   background-color: var(--color-canvas);
-  background-image:
-    radial-gradient(60rem 32rem at 15% -10%, rgba(59, 153, 133, 0.07), transparent 60%),
-    radial-gradient(50rem 30rem at 110% 10%, rgba(103, 210, 200, 0.06), transparent 55%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
 }
 
 .shadow-card {
   box-shadow: var(--shadow-card);
+}
+
+/* Hairline border tokens — the reference's signature thin 1px division
+   (white-alpha on dark surfaces, ink-alpha on light ones) used in place of
+   heavy shadows/borders wherever a component needs a boundary. */
+.hairline-light {
+  border-color: rgb(10 10 10 / 0.1);
+}
+.hairline-dark {
+  border-color: rgb(255 255 255 / 0.14);
+}
+
+/* Small mono uppercase label — the eyebrow/caption voice used above nearly
+   every section heading (Eyebrow.jsx) and for status/meta text throughout
+   the product. */
+.label-mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.16em;
 }
 
 /* ==========================================================================

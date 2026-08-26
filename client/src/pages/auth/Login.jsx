@@ -5,6 +5,7 @@ import { Eyebrow } from "../../components/marketing/Eyebrow.jsx";
 import { Alert } from "../../components/ui/Alert.jsx";
 import { Button, buttonClasses } from "../../components/ui/Button.jsx";
 import { api, setToken } from "../../api/client.js";
+import { authInputClass, authLabelClass, authCheckboxClass } from "./authField.js";
 
 // UI shell only, by design — see this session's brief. There is no merchant registration/login
 // endpoint in this build (server/src/routes/auth.js only issues demo tokens; SECURITY.md §
@@ -42,17 +43,19 @@ export default function Login() {
       eyebrow={<Eyebrow>Welcome back</Eyebrow>}
       title="Log in"
       subtitle="Real merchant accounts aren't live in this preview build — use the demo below to explore the product."
+      statement="Every recovery has a decision behind it."
+      statementSupport="Policy-bounded, reviewed, and always accountable — see exactly why each payment was recovered the way it was."
       footer={
         <>
           No account?{" "}
-          <Link to="/signup" className="font-medium text-brand-700 hover:text-brand-900">
+          <Link to="/signup" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
             Sign up
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Email
           <input
             type="email"
@@ -60,10 +63,10 @@ export default function Login() {
             autoComplete="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Password
           <input
             type="password"
@@ -72,20 +75,20 @@ export default function Login() {
             autoComplete="current-password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
         <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2 text-slate-600">
+          <label className="flex items-center gap-2 text-brand-600">
             <input
               type="checkbox"
               checked={form.remember}
               onChange={(e) => setForm((f) => ({ ...f, remember: e.target.checked }))}
-              className="h-3.5 w-3.5 rounded border-slate-300 text-brand-700 focus:ring-brand-400"
+              className={authCheckboxClass}
             />
             Remember me
           </label>
-          <Link to="/forgot-password" className="font-medium text-brand-700 hover:text-brand-900">
+          <Link to="/forgot-password" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
             Forgot password?
           </Link>
         </div>
@@ -107,7 +110,7 @@ export default function Login() {
         </div>
       )}
 
-      <div className="mt-6 border-t border-slate-100 pt-6">
+      <div className="mt-6 border-t border-brand-900/10 pt-6">
         <button type="button" onClick={handleDemo} disabled={demoStatus === "loading"} className={buttonClasses({ variant: "secondary", className: "w-full" })}>
           {demoStatus === "loading" ? "Entering demo…" : "Continue with live demo"}
         </button>

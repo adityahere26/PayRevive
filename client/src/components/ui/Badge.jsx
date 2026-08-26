@@ -4,7 +4,7 @@ import { statusLabel, statusTone } from "../../lib/statusMeta.js";
 // session brief). Every status pill, source tag, and inline label goes through this.
 
 const TONE_STYLES = {
-  mint: "bg-mint-100 text-brand-800 ring-1 ring-inset ring-brand-200",
+  mint: "bg-mint-100 text-brand-800 ring-1 ring-inset ring-mint-200",
   amber: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
   red: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/15",
   cyan: "bg-cyan-50 text-cyan-700 ring-1 ring-inset ring-cyan-600/20",

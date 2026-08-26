@@ -5,6 +5,7 @@ import { Eyebrow } from "../../components/marketing/Eyebrow.jsx";
 import { Alert } from "../../components/ui/Alert.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { AlertTriangleIcon } from "../../components/ui/icons.jsx";
+import { authInputClass, authLabelClass } from "./authField.js";
 
 // A reset link always carries a token in its URL. No token means this wasn't reached via a
 // real reset email — shown as the same "invalid or expired" state a real expired token would
@@ -23,20 +24,25 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <AuthShell eyebrow={<Eyebrow>Password reset</Eyebrow>} title="This link is invalid or has expired">
+      <AuthShell
+        eyebrow={<Eyebrow>Password reset</Eyebrow>}
+        title="This link is invalid or has expired"
+        statement="Every recovery has a decision behind it."
+        statementSupport="This one just isn't valid anymore — request a fresh link, or skip straight to the live demo."
+      >
         <div className="flex flex-col items-center gap-4 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-500">
             <AlertTriangleIcon className="h-5 w-5" />
           </span>
-          <p className="text-sm leading-relaxed text-slate-500">
+          <p className="text-sm leading-relaxed text-brand-500">
             Reset links expire after a short time, and this one is missing its token. Request a
             new one, or use the live demo — no password required.
           </p>
           <div className="flex w-full flex-col gap-2">
-            <Link to="/forgot-password" className="rounded-lg bg-brand-700 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-800">
+            <Link to="/forgot-password" className="rounded-full bg-emerald-500 px-4 py-2.5 text-center text-sm font-semibold text-brand-950 hover:bg-emerald-400">
               Request a new link
             </Link>
-            <Link to="/demo" className="rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm font-medium text-brand-800 hover:bg-mint-50">
+            <Link to="/demo" className="rounded-full border border-brand-900/15 px-4 py-2.5 text-center text-sm font-medium text-brand-800 hover:bg-brand-50">
               Use the live demo
             </Link>
           </div>
@@ -46,9 +52,14 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthShell eyebrow={<Eyebrow>Password reset</Eyebrow>} title="Choose a new password">
+    <AuthShell
+      eyebrow={<Eyebrow>Password reset</Eyebrow>}
+      title="Choose a new password"
+      statement="Every recovery has a decision behind it."
+      statementSupport="Policy-bounded, reviewed, and always accountable — the same discipline applies here."
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           New password
           <input
             type="password"
@@ -57,7 +68,7 @@ export default function ResetPassword() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
         <Button type="submit" disabled={status === "loading"} className="w-full">

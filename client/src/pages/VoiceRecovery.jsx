@@ -6,8 +6,9 @@ import { Card } from "../components/ui/Card.jsx";
 import { Badge, StatusBadge } from "../components/ui/Badge.jsx";
 import { Button, buttonClasses } from "../components/ui/Button.jsx";
 import { Alert } from "../components/ui/Alert.jsx";
-import { Field } from "../components/ui/PageHeader.jsx";
+import { PageHeader, Field } from "../components/ui/PageHeader.jsx";
 import { ArrowLeftIcon, MicIcon } from "../components/ui/icons.jsx";
+import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
 
 // AGENT_DESIGN.md § Voice pipeline. Browser mic (Web Speech API — Chrome recommended) ->
 // transcript -> POST /voice/turn -> Gemini intent classification -> the SAME deterministic
@@ -71,6 +72,35 @@ const STATUS_LABELS = {
   RESPONDING: "Responding…",
   ENDED: "Session ended",
 };
+
+// A CSS-only waveform — no audio-visualization library. Bars stay flat until `active`, then rise
+// on a staggered keyframe loop; the reduced-motion query is embedded directly in this scoped
+// <style> block so the effect degrades to a static bar row without depending on JS state.
+function VoiceWaveform({ active }) {
+  const bars = 22;
+  return (
+    <div className="flex h-14 items-end justify-center gap-[3px]" aria-hidden="true">
+      <style>{`
+        @keyframes pr-voice-wave { 0%, 100% { transform: scaleY(.22); } 50% { transform: scaleY(1); } }
+        .pr-voice-bar { animation: pr-voice-wave 1.15s ease-in-out infinite; transform-origin: bottom; }
+        @media (prefers-reduced-motion: reduce) {
+          .pr-voice-bar { animation: none !important; transform: scaleY(.5) !important; }
+        }
+      `}</style>
+      {Array.from({ length: bars }).map((_, i) => (
+        <span
+          key={i}
+          className={`w-[3px] rounded-full ${active ? "bg-emerald-400 pr-voice-bar" : "bg-white/20"}`}
+          style={{
+            height: "100%",
+            animationDelay: `${(i * 65) % 1000}ms`,
+            transform: active ? undefined : "scaleY(.16)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function VoiceRecovery() {
   const { caseId } = useParams();
@@ -243,74 +273,91 @@ export default function VoiceRecovery() {
   if (!recoveryCase) {
     return (
       <Card>
-        <div className="h-3 w-32 animate-pulse rounded bg-slate-100" />
-        <div className="mt-3 h-8 w-56 animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-32 animate-pulse rounded bg-brand-100" />
+        <div className="mt-3 h-8 w-56 animate-pulse rounded bg-brand-100" />
       </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link to={`/recovery-cases/${caseId}`} className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-brand-700">
-          <ArrowLeftIcon className="h-3.5 w-3.5" />
-          Back to case
-        </Link>
-        <div className="mt-1.5 flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-mint-100 text-brand-600">
-            <MicIcon className="h-4 w-4" />
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-brand-900">Hinglish Voice Recovery</h1>
-        </div>
-      </div>
+      <RevealOnScroll>
+        <PageHeader
+          eyebrow={
+            <Link to={`/recovery-cases/${caseId}`} className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 hover:text-brand-900">
+              <ArrowLeftIcon className="h-3.5 w-3.5" />
+              Back to case
+            </Link>
+          }
+          title={
+            <span className="inline-flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-950 text-emerald-400">
+                <MicIcon className="h-4 w-4" />
+              </span>
+              Hinglish Voice Recovery
+            </span>
+          }
+        />
+      </RevealOnScroll>
 
       {/* Recovery case summary */}
-      <Card>
-        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Amount at Risk" value={formatINR(recoveryCase.amount)} />
-          <Field label="Recovery Status" value={<StatusBadge status={recoveryCase.status} />} />
-          <Field label="Root Cause" value={recoveryCase.rootCause} />
-          <Field label="Voice Attempts" value={`${recoveryCase.voiceAttempts ?? 0}`} />
-        </dl>
-      </Card>
+      <RevealOnScroll delay={60}>
+        <Card>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Field label="Amount at Risk" value={formatINR(recoveryCase.amount)} />
+            <Field label="Recovery Status" value={<StatusBadge status={recoveryCase.status} />} />
+            <Field label="Root Cause" value={recoveryCase.rootCause} />
+            <Field label="Voice Attempts" value={`${recoveryCase.voiceAttempts ?? 0}`} />
+          </dl>
+        </Card>
+      </RevealOnScroll>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Voice conversation panel */}
-        <div className="space-y-4 lg:col-span-2">
+        <RevealOnScroll delay={110} className="space-y-4 lg:col-span-2" as="div">
           <Card
             title="Voice Conversation"
             action={
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-mint-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
-                {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />}
-                {STATUS_LABELS[uiState]}
+              <span className="label-mono inline-flex items-center gap-1.5 text-[11px] text-brand-400">
+                {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
+                LIVE
               </span>
             }
           >
-            {uiState === "IDLE" && (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-mint-50/40 p-8 text-center">
-                <Button onClick={handleStart} disabled={starting || isTerminal} size="lg">
-                  {starting ? "Starting…" : "Start Voice Recovery"}
-                </Button>
-                {sessionError && <p className="mt-3 text-xs text-red-600">{sessionError}</p>}
-                {isTerminal && (
-                  <p className="mt-3 text-xs text-slate-500">
-                    This case has already reached a final state ({recoveryCase.status}) — no voice session available.
-                  </p>
-                )}
-                {!micSupported && (
-                  <p className="mt-3 text-xs text-slate-500">
-                    Voice input isn't supported in this browser (Chrome is recommended). You'll still be able to
-                    type your response once the session starts — it runs through the exact same pipeline.
-                  </p>
-                )}
+            {/* The stage — always visible, shows current AI voice state + waveform */}
+            <div className="rounded-2xl bg-brand-950 px-6 py-10 text-center text-white sm:px-10">
+              <div className="label-mono text-[11px] text-emerald-300">VOICE AGENT</div>
+              <div className="mt-2 text-lg font-medium">{STATUS_LABELS[uiState]}</div>
+              <div className="mt-6">
+                <VoiceWaveform active={isLive} />
               </div>
-            )}
+
+              {uiState === "IDLE" && (
+                <div className="mt-7">
+                  <Button onClick={handleStart} disabled={starting || isTerminal} size="lg">
+                    {starting ? "Starting…" : "Start Voice Recovery"}
+                  </Button>
+                  {sessionError && <p className="mt-3 text-xs text-red-300">{sessionError}</p>}
+                  {isTerminal && (
+                    <p className="mt-3 text-xs text-white/50">
+                      This case has already reached a final state ({recoveryCase.status}) — no voice session available.
+                    </p>
+                  )}
+                  {!micSupported && (
+                    <p className="mt-3 text-xs text-white/50">
+                      Voice input isn't supported in this browser (Chrome is recommended). You'll still be able to
+                      type your response once the session starts — it runs through the exact same pipeline.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {uiState !== "IDLE" && (
-              <>
-                <div className="mb-3 max-h-80 space-y-2 overflow-y-auto rounded-xl bg-slate-50/70 p-3">
+              <div className="mt-5">
+                <div className="mb-3 max-h-80 space-y-2 overflow-y-auto rounded-xl bg-brand-50/70 p-3">
                   {conversation.length === 0 && (
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-brand-400">
                       Say something like "Bhai payment fail ho gaya tha, ek baar phir try karwa do" — or type it below.
                     </p>
                   )}
@@ -319,8 +366,8 @@ export default function VoiceRecovery() {
                       key={i}
                       className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${
                         entry.speaker === "customer"
-                          ? "ml-auto bg-brand-700 text-white"
-                          : "border border-slate-200 bg-white text-slate-800"
+                          ? "ml-auto bg-brand-900 text-white"
+                          : "border border-brand-900/10 bg-white text-brand-800"
                       }`}
                     >
                       {entry.text}
@@ -334,8 +381,8 @@ export default function VoiceRecovery() {
                       type="button"
                       onClick={uiState === "LISTENING" ? handleMicStop : handleMicStart}
                       disabled={uiState === "THINKING" || uiState === "RESPONDING" || uiState === "ENDED"}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                        uiState === "LISTENING" ? "bg-red-600 text-white hover:bg-red-700" : "bg-brand-700 text-white hover:bg-brand-800"
+                      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        uiState === "LISTENING" ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-500 text-brand-950 hover:bg-emerald-400"
                       }`}
                     >
                       <MicIcon className="h-4 w-4" />
@@ -350,7 +397,7 @@ export default function VoiceRecovery() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Type your response (Hinglish works)…"
                       disabled={uiState === "THINKING" || uiState === "ENDED"}
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 disabled:opacity-50"
+                      className="flex-1 rounded-full border border-brand-200 px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/25 disabled:opacity-50"
                     />
                     <button
                       type="submit"
@@ -372,8 +419,8 @@ export default function VoiceRecovery() {
                 {turnError && <p className="mt-2 text-xs text-red-600">{turnError}</p>}
 
                 {uiState === "ENDED" && (
-                  <div className="mt-3 flex items-center gap-3 rounded-xl bg-mint-50/60 p-3">
-                    <span className="text-xs text-slate-600">
+                  <div className="mt-3 flex items-center gap-3 rounded-xl bg-brand-50 p-3">
+                    <span className="text-xs text-brand-600">
                       Session ended{isTerminal ? ` — case is now ${recoveryCase.status}.` : "."}
                     </span>
                     {!isTerminal && (
@@ -383,15 +430,15 @@ export default function VoiceRecovery() {
                     )}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </Card>
-        </div>
+        </RevealOnScroll>
 
         {/* Decision panel */}
-        <div className="space-y-4">
+        <RevealOnScroll delay={160} className="space-y-4" as="div">
           <Card title="AI Recommendation">
-            {!lastTurn && <p className="text-xs text-slate-400">Nothing yet — start the conversation.</p>}
+            {!lastTurn && <p className="text-xs text-brand-400">Nothing yet — start the conversation.</p>}
             {lastTurn && (
               <dl className="space-y-4">
                 <Field label="Detected Intent" value={lastTurn.aiIntent?.intent} />
@@ -407,7 +454,7 @@ export default function VoiceRecovery() {
           </Card>
 
           <Card title="Policy Decision">
-            {!lastTurn && <p className="text-xs text-slate-400">Not evaluated yet.</p>}
+            {!lastTurn && <p className="text-xs text-brand-400">Not evaluated yet.</p>}
             {lastTurn && (
               <dl className="space-y-4">
                 <Field label="Candidate Action" value={lastTurn.candidateAction} />
@@ -418,7 +465,7 @@ export default function VoiceRecovery() {
           </Card>
 
           <Card title="Action">
-            {!lastTurn?.action && <p className="text-xs text-slate-400">No action executed yet.</p>}
+            {!lastTurn?.action && <p className="text-xs text-brand-400">No action executed yet.</p>}
             {lastTurn?.action && (
               <dl className="space-y-4">
                 <Field label="Action" value={lastTurn.action.action} />
@@ -429,7 +476,7 @@ export default function VoiceRecovery() {
                 />
                 {lastTurn.paymentLink?.shortUrl && (
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Payment Link</dt>
+                    <dt className="label-mono text-[11px] text-brand-400">PAYMENT LINK</dt>
                     <dd className="mt-1">
                       <Badge tone="brand" size="sm">Razorpay Test Mode</Badge>
                       <a
@@ -449,11 +496,11 @@ export default function VoiceRecovery() {
 
           <Link
             to={`/recovery-cases/${caseId}`}
-            className="block rounded-2xl border border-dashed border-slate-200 bg-white/60 p-4 text-center text-xs text-slate-500 hover:bg-mint-50/60"
+            className="block rounded-2xl border border-brand-900/10 bg-white/60 p-4 text-center text-xs text-brand-500 transition-colors hover:border-brand-300 hover:bg-emerald-50/50"
           >
             View full audit trail on the case page →
           </Link>
-        </div>
+        </RevealOnScroll>
       </div>
     </div>
   );

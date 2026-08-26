@@ -4,6 +4,7 @@ import { AuthShell } from "../../components/marketing/AuthShell.jsx";
 import { Eyebrow } from "../../components/marketing/Eyebrow.jsx";
 import { Alert } from "../../components/ui/Alert.jsx";
 import { Button } from "../../components/ui/Button.jsx";
+import { authInputClass, authLabelClass } from "./authField.js";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -20,14 +21,16 @@ export default function ForgotPassword() {
       eyebrow={<Eyebrow>Password reset</Eyebrow>}
       title="Forgot your password?"
       subtitle="Enter the email on your account and we'll send a reset link — once real accounts exist."
+      statement="Access is temporary. Recovery isn't."
+      statementSupport="Real password recovery lands with merchant accounts — until then, the live demo needs no password at all."
       footer={
-        <Link to="/login" className="font-medium text-brand-700 hover:text-brand-900">
+        <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
           ← Back to log in
         </Link>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm text-slate-600">
+        <label className={authLabelClass}>
           Email
           <input
             type="email"
@@ -35,7 +38,7 @@ export default function ForgotPassword() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-brand-900 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className={authInputClass}
           />
         </label>
         <Button type="submit" disabled={status === "loading"} className="w-full">

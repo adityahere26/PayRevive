@@ -19,7 +19,7 @@ export default function NotFound() {
         </p>
         <Link
           to="/"
-          className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand-900 shadow-card-hover hover:bg-mint-50"
+          className="mt-7 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-brand-950 hover:bg-emerald-400"
         >
           Back to home
           <ArrowRightIcon className="h-4 w-4" />

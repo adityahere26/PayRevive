@@ -4,10 +4,10 @@ import { MagneticButton } from "../motion/MagneticButton.jsx";
 import { MenuIcon, XIcon, ArrowRightIcon } from "../ui/icons.jsx";
 
 const NAV_LINKS = [
-  { to: "/about", label: "About" },
+  { to: "/solutions", label: "Product" },
   { to: "/how-it-works", label: "How it works" },
-  { to: "/solutions", label: "Solutions" },
   { to: "/pricing", label: "Pricing" },
+  { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];
 
@@ -20,23 +20,25 @@ export function MarketingHeader() {
   useEffect(() => setOpen(false), [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5 sm:px-6">
-        <Link to="/" className="flex shrink-0 items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white">
+    <header className="sticky top-0 z-40 border-b border-brand-900/10 bg-white/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-6">
+        <Link to="/" className="flex shrink-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-950 text-sm font-bold text-white">
             P
           </span>
-          <span className="text-[15px] font-semibold tracking-tight text-brand-900">payrevive</span>
+          <span className="label-mono text-xs font-semibold text-brand-950">PAYREVIVE</span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-8 lg:flex">
           {NAV_LINKS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive ? "bg-mint-100 text-brand-800" : "text-slate-500 hover:bg-slate-50 hover:text-brand-800"
+                `label-mono relative py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-emerald-600 after:transition-all after:duration-300 ${
+                  isActive
+                    ? "text-brand-950 after:w-full"
+                    : "text-slate-500 after:w-0 hover:text-brand-950 hover:after:w-full"
                 }`
               }
             >
@@ -45,14 +47,14 @@ export function MarketingHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link to="/login" className="rounded-lg px-3.5 py-2 text-sm font-medium text-brand-800 hover:bg-mint-50">
+        <div className="hidden items-center gap-6 lg:flex">
+          <Link to="/login" className="label-mono text-[11px] font-medium uppercase tracking-[0.14em] text-brand-800 hover:text-brand-950">
             Log in
           </Link>
           <MagneticButton
             as={Link}
             to="/signup"
-            className="items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-800"
+            className="items-center gap-1.5 rounded-full border border-brand-950 bg-brand-950 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-transparent hover:text-brand-950"
           >
             Get Started
             <ArrowRightIcon className="h-3.5 w-3.5" />
@@ -61,7 +63,7 @@ export function MarketingHeader() {
 
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-800 hover:bg-mint-50 lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-brand-800 hover:bg-brand-50 lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
@@ -71,25 +73,25 @@ export function MarketingHeader() {
       </div>
 
       {open && (
-        <div className="border-t border-slate-100 bg-white px-5 py-4 lg:hidden">
-          <nav className="flex flex-col gap-1">
+        <div className="border-t border-brand-900/10 bg-white px-5 py-6 lg:hidden">
+          <nav className="flex flex-col gap-5">
             {NAV_LINKS.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `rounded-lg px-3 py-2.5 text-sm font-medium ${isActive ? "bg-mint-100 text-brand-800" : "text-slate-600 hover:bg-slate-50"}`
+                  `text-2xl font-semibold tracking-tight ${isActive ? "text-emerald-600" : "text-brand-950"}`
                 }
               >
                 {item.label}
               </NavLink>
             ))}
           </nav>
-          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
-            <Link to="/login" className="rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm font-medium text-brand-800">
+          <div className="mt-8 flex flex-col gap-3 border-t border-brand-900/10 pt-6">
+            <Link to="/login" className="rounded-full border border-brand-200 px-4 py-3 text-center text-sm font-medium text-brand-800">
               Log in
             </Link>
-            <Link to="/signup" className="rounded-lg bg-brand-700 px-4 py-2.5 text-center text-sm font-medium text-white">
+            <Link to="/signup" className="rounded-full bg-brand-950 px-4 py-3 text-center text-sm font-semibold text-white">
               Get Started
             </Link>
           </div>

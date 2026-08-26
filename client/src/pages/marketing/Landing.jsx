@@ -51,7 +51,7 @@ const STORY_STEPS = [
 
 function DecisionMock() {
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-card-hover">
+    <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">AI recommendation</div>
       <div className="mt-1.5 text-sm font-semibold text-brand-900">Create payment link</div>
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
@@ -64,7 +64,7 @@ function DecisionMock() {
 
 function VoiceMock() {
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-card-hover">
+    <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
       <div className="flex items-center gap-2 text-brand-700">
         <WaveformIcon className="h-5 w-5" />
         <span className="text-xs font-semibold uppercase tracking-wide">Listening — Hinglish</span>
@@ -84,7 +84,7 @@ function VoiceMock() {
 function PolicyMock() {
   const rows = ["Max recovery attempts respected", "High-value cases escalated for review", "Opted-out customers never contacted"];
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-card-hover">
+    <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Merchant policy</div>
       <ul className="mt-3 space-y-2.5">
         {rows.map((r) => (
@@ -101,7 +101,7 @@ function PolicyMock() {
 function OutcomeMock() {
   const steps = ["Failed", "Analyzed", "Policy", "Action", "Recovered"];
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-card-hover">
+    <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Case timeline</div>
       <div className="mt-3 space-y-2">
         {steps.map((s, i) => (
@@ -117,7 +117,7 @@ function OutcomeMock() {
 
 function LinkMock() {
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-card-hover">
+    <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Payment link</span>
         <span className="rounded-full bg-brand-700 px-2 py-0.5 text-[10px] font-medium text-white">Test Mode</span>
@@ -216,7 +216,7 @@ const FAQ_ITEMS = [
 
 function FaqItem({ item, open, onToggle }) {
   return (
-    <div className="border-b border-slate-200/80">
+    <div className="hairline-light border-b">
       <button
         type="button"
         onClick={onToggle}
@@ -244,49 +244,61 @@ export default function Landing() {
   return (
     <div>
       {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800">
+      {/* Flat true-black field (not a gradient) — the reference's dark sections are austere,
+          full-bleed #000, and rely on the floating composition + huge type for depth rather
+          than a lighting effect. */}
+      <section className="relative overflow-hidden bg-brand-950">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <span className="absolute -bottom-24 -right-16 select-none text-[28rem] font-bold leading-none text-white/[0.03]" aria-hidden="true">
             ₹
           </span>
-          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-white/15" style={{ top: "14%", right: "16%" }} depth={14} floatSpeed={8} />
-          <FloatingCurrency symbol="₹" size="text-4xl" tone="text-mint-300/25" style={{ top: "62%", right: "6%" }} depth={10} floatSpeed={6} floatDelay={0.6} />
+          {/* Fail → recover narrative, told spatially rather than as a literal flowchart:
+              a failure signal sits high-left, the AI/decision beat sits mid-composition, and
+              the recovered outcome resolves lower-right — the eye travels the same arc the
+              money does. */}
+          <FloatingBadge text="Payment failed" tone="amber" style={{ top: "16%", left: "6%" }} delay={0.1} className="lg:inline-block" />
+          <FloatingCurrency symbol="₹" size="text-2xl" tone="text-amber-200/40" circle circleClassName="border-amber-300/30" style={{ top: "28%", left: "14%" }} depth={18} floatSpeed={6} floatDelay={0.4} />
+
+          <FloatingBadge text="AI decision" tone="dark" style={{ top: "46%", left: "40%" }} delay={0.6} />
+
+          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-white/15" style={{ top: "10%", right: "14%" }} depth={14} floatSpeed={8} />
+          <FloatingCurrency symbol="₹" size="text-3xl" tone="text-mint-300/70" circle circleClassName="border-mint-300/40 bg-mint-300/5" style={{ top: "58%", right: "8%" }} depth={10} floatSpeed={6} floatDelay={0.6} />
           <FloatingCurrency symbol="$" size="text-2xl" tone="text-white/15" style={{ top: "30%", right: "34%" }} depth={20} floatSpeed={5.5} floatDelay={1.2} />
           <FloatingCurrency symbol="€" size="text-xl" tone="text-white/10" style={{ top: "72%", right: "30%" }} depth={16} floatSpeed={7.5} floatDelay={0.3} />
           <FloatingCurrency symbol="£" size="text-lg" tone="text-white/10" style={{ top: "44%", right: "10%" }} depth={24} floatSpeed={6.5} floatDelay={1.6} />
           <FloatingMetric icon={<CheckCircleIcon className="h-3 w-3" />} value="₹82,450" label="Example · Recovered" tone="emerald" style={{ top: "20%", right: "6%" }} delay={0.4} className="lg:flex" />
-          <FloatingBadge text="AI decision" tone="dark" style={{ top: "78%", right: "18%" }} delay={0.9} />
+          <FloatingBadge text="Recovered" tone="emerald" style={{ bottom: "16%", right: "20%" }} delay={0.9} />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-20 sm:px-8 sm:pb-32 sm:pt-28">
+        <div className="relative mx-auto max-w-6xl px-6 pb-28 pt-24 sm:px-8 sm:pb-36 sm:pt-32">
           <RevealOnScroll>
             <Eyebrow tone="dark">AI Revenue Recovery</Eyebrow>
           </RevealOnScroll>
           <RevealOnScroll delay={90}>
-            <h1 className="mt-6 max-w-3xl text-6xl font-bold leading-[0.98] tracking-tight text-white sm:text-7xl lg:text-8xl">
+            <h1 className="mt-7 max-w-4xl text-7xl font-semibold leading-[0.94] tracking-normal text-white sm:text-8xl lg:text-9xl">
               Recover revenue
               <span className="block text-mint-300">before it&rsquo;s lost.</span>
             </h1>
           </RevealOnScroll>
           <RevealOnScroll delay={180}>
-            <p className="mt-7 max-w-lg text-lg leading-relaxed text-mint-100/90">
+            <p className="mt-8 max-w-lg text-lg leading-relaxed text-mint-100/90">
               PayRevive detects failed payments, decides what is safe to recover, and takes the
               right action — automatically.
             </p>
           </RevealOnScroll>
           <RevealOnScroll delay={270}>
-            <div className="mt-9 flex flex-wrap items-center gap-4">
+            <div className="mt-10 flex flex-wrap items-center gap-4">
               <MagneticButton
                 as={Link}
                 to="/signup"
-                className="items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-brand-900 shadow-card-hover hover:bg-mint-50"
+                className="items-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-brand-950 hover:bg-emerald-400"
               >
                 Get Started
                 <ArrowRightIcon className="h-4 w-4" />
               </MagneticButton>
               <Link
                 to="/how-it-works"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                className="hairline-dark inline-flex items-center gap-2 rounded-full border px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white/40"
               >
                 See How It Works
               </Link>
@@ -296,7 +308,7 @@ export default function Landing() {
       </section>
 
       {/* ===== MARQUEE ===== */}
-      <div className="border-y border-slate-200/70 bg-mint-50/60 py-4">
+      <div className="hairline-light border-y bg-mint-50/60 py-4">
         <Marquee speed={32}>
           {MARQUEE_WORDS.map((w) => (
             <span key={w} className="mx-6 flex items-center gap-6 text-sm font-semibold uppercase tracking-widest text-brand-700">
@@ -324,7 +336,7 @@ export default function Landing() {
 
           <StaggerChildren className="space-y-0" step={80}>
             {FAILURE_CAUSES.map((c) => (
-              <div key={c.n} className="flex items-start gap-5 border-b border-slate-100 py-5 first:pt-0 last:border-0">
+              <div key={c.n} className="flex items-start gap-5 hairline-light border-b py-5 first:pt-0 last:border-0">
                 <span className="text-sm font-semibold text-slate-300">{c.n}</span>
                 <div>
                   <div className="text-base font-semibold text-brand-900">{c.label}</div>
@@ -348,7 +360,7 @@ export default function Landing() {
 
           <StaggerChildren className="mt-16 space-y-10" step={100}>
             {STORY_STEPS.map((s) => (
-              <div key={s.n} className="flex flex-col gap-3 border-b border-slate-200/70 pb-10 last:border-0 sm:flex-row sm:items-baseline sm:gap-8">
+              <div key={s.n} className="flex flex-col gap-3 hairline-light border-b pb-10 last:border-0 sm:flex-row sm:items-baseline sm:gap-8">
                 <span className="text-5xl font-bold text-brand-100 sm:text-6xl">{s.n}</span>
                 <div>
                   <div className="text-xl font-bold tracking-tight text-brand-900">{s.title}</div>
@@ -378,7 +390,7 @@ export default function Landing() {
               <div className="mx-auto max-w-6xl px-6 py-16 sm:px-8 sm:py-20">
                 <div className={`flex flex-col items-center gap-12 lg:flex-row lg:gap-20 ${reversed ? "lg:flex-row-reverse" : ""}`}>
                   <RevealOnScroll className="flex-1">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-950 text-white">
                       <Icon className="h-5 w-5" />
                     </span>
                     <Eyebrow className="mt-5">{cap.eyebrow}</Eyebrow>
@@ -464,7 +476,7 @@ export default function Landing() {
       {/* Dark background isn't just rhythm here — FloatingReview's glass-bubble trigger
           (border-white/25 bg-white/10) is designed for a dark/colored backdrop; on a light
           section it renders as a near-invisible white-on-white circle. */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-brand-900 to-brand-950 py-32 sm:py-40">
+      <section className="relative overflow-hidden bg-brand-950 py-32 sm:py-40">
         <div className="mx-auto max-w-3xl px-6 text-center sm:px-8">
           <RevealOnScroll>
             <Eyebrow tone="dark">In their words</Eyebrow>
@@ -486,7 +498,7 @@ export default function Landing() {
       </section>
 
       {/* ===== PRICING TEASER ===== */}
-      <section className="border-y border-slate-200/70 bg-mint-50/50 py-20">
+      <section className="hairline-light border-y bg-mint-50/50 py-20">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-6 text-center sm:px-8">
           <RevealOnScroll>
             <Eyebrow>Pricing</Eyebrow>
@@ -517,21 +529,23 @@ export default function Landing() {
       </section>
 
       {/* ===== FINAL CTA ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 py-28 sm:py-36">
+      <section className="relative overflow-hidden bg-brand-950 py-32 sm:py-40">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <FloatingCurrency symbol="₹" size="text-6xl" tone="text-white/10" style={{ top: "20%", left: "10%" }} depth={12} floatSpeed={7} />
+          <FloatingCurrency symbol="₹" size="text-2xl" tone="text-mint-300/70" circle circleClassName="border-mint-300/40" style={{ top: "68%", left: "20%" }} depth={16} floatSpeed={5} floatDelay={0.3} />
           <FloatingCurrency symbol="$" size="text-3xl" tone="text-mint-300/20" style={{ bottom: "18%", right: "14%" }} depth={18} floatSpeed={6} floatDelay={0.8} />
+          <FloatingCurrency symbol="£" size="text-xl" tone="text-white/15" circle circleClassName="border-white/20" style={{ top: "24%", right: "24%" }} depth={20} floatSpeed={7.5} floatDelay={1.1} />
         </div>
         <div className="relative mx-auto max-w-3xl px-6 text-center sm:px-8">
           <RevealOnScroll>
-            <h2 className="text-5xl font-bold leading-[1.03] tracking-tight text-white sm:text-6xl">
+            <h2 className="text-6xl font-semibold leading-[0.96] tracking-normal text-white sm:text-7xl lg:text-8xl">
               Recover the revenue
               <span className="block text-mint-300">you already earned.</span>
             </h2>
             <MagneticButton
               as={Link}
               to="/signup"
-              className="mx-auto mt-10 items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-brand-900 shadow-card-hover hover:bg-mint-50"
+              className="mx-auto mt-10 items-center gap-2 rounded-full bg-emerald-500 px-7 py-4 text-sm font-semibold text-brand-950 hover:bg-emerald-400"
             >
               Get Started
               <ArrowRightIcon className="h-4 w-4" />

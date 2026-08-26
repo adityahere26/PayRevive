@@ -1,10 +1,12 @@
-// Small uppercase label used above nearly every section heading on the public site — one
+// Small uppercase mono label used above nearly every section heading on the public site — one
 // place that owns its two tone variants (light section vs. dark section) instead of every
-// page re-deriving the same pill styling.
+// page re-deriving the same styling. Editorial treatment: no pill chrome, just a small accent
+// dot and tracked-out monospace text, echoing the reference's understated section labels.
 export function Eyebrow({ children, tone = "light", className = "" }) {
-  const toneClass = tone === "dark" ? "bg-white/10 text-mint-200" : "bg-mint-100 text-brand-700";
+  const toneClass = tone === "dark" ? "text-white/60" : "text-brand-500";
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest ${toneClass} ${className}`}>
+    <span className={`label-mono inline-flex items-center gap-2 text-[11px] font-medium uppercase ${toneClass} ${className}`}>
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
       {children}
     </span>
   );

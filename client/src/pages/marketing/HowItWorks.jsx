@@ -2,7 +2,9 @@ import { Link } from "react-router-dom";
 import { RevealOnScroll } from "../../components/motion/RevealOnScroll.jsx";
 import { StaggerChildren } from "../../components/motion/StaggerChildren.jsx";
 import { Eyebrow } from "../../components/marketing/Eyebrow.jsx";
+import { FloatingCurrency } from "../../components/floating/FloatingCurrency.jsx";
 import { ArrowRightIcon } from "../../components/ui/icons.jsx";
+import { buttonClasses } from "../../components/ui/Button.jsx";
 
 const STEPS = [
   {
@@ -51,14 +53,28 @@ const SCENARIOS = [
 export default function HowItWorks() {
   return (
     <div>
-      <section className="bg-canvas py-24 sm:py-32">
-        <div className="mx-auto max-w-3xl px-6 text-center sm:px-8">
+      <section className="relative overflow-hidden bg-brand-950 py-28 sm:py-40">
+        <div className="pointer-events-none absolute inset-0">
+          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-white/[0.06]" style={{ top: "14%", left: "8%" }} depth={10} />
+          <FloatingCurrency
+            circle
+            symbol="$"
+            size="flex h-14 w-14 text-lg"
+            tone="border-white/15 text-mint-200"
+            circleClassName="border"
+            style={{ bottom: "16%", right: "12%" }}
+            depth={16}
+            floatDelay={0.5}
+          />
+        </div>
+        <div className="relative mx-auto max-w-4xl px-6 sm:px-8">
           <RevealOnScroll>
-            <Eyebrow>How it works</Eyebrow>
-            <h1 className="mx-auto mt-6 max-w-xl text-5xl font-bold leading-[1.05] tracking-tight text-brand-900 sm:text-6xl">
-              One pipeline. Every safeguard.
+            <Eyebrow tone="dark">How it works</Eyebrow>
+            <h1 className="mt-6 text-[clamp(2.75rem,7vw,6.5rem)] font-bold leading-[0.95] tracking-tight text-white">
+              One pipeline.
+              <span className="block text-mint-300">Every safeguard.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-slate-500">
+            <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/60">
               Detect → Diagnose → Decide → Policy check → Act → Observe → Recover → Measure →
               Audit. Every recovery case moves through all nine stages, traceably.
             </p>
@@ -66,47 +82,48 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-4xl px-6 py-20 sm:px-8 sm:py-24">
-        <StaggerChildren className="space-y-14" step={90}>
-          {STEPS.map((s) => (
-            <div key={s.n} className="flex flex-col gap-3 border-b border-slate-200/70 pb-14 last:border-0 sm:flex-row sm:items-baseline sm:gap-10">
-              <span className="text-5xl font-bold text-brand-100 sm:text-6xl">{s.n}</span>
-              <div>
-                <div className="text-2xl font-bold tracking-tight text-brand-900">{s.title}</div>
-                <p className="mt-3 max-w-xl text-base leading-relaxed text-slate-500">{s.body}</p>
+      <section className="bg-white py-24 sm:py-32">
+        <div className="mx-auto max-w-5xl px-6 sm:px-8">
+          {STEPS.map((s, i) => (
+            <RevealOnScroll
+              key={s.n}
+              delay={Math.min(i * 60, 240)}
+              className={`grid grid-cols-1 items-start gap-4 border-b border-brand-100 py-12 last:border-0 sm:grid-cols-[auto,1fr] sm:gap-14 sm:py-16 ${
+                i % 2 === 1 ? "sm:pl-24" : ""
+              }`}
+            >
+              <span className="text-[5.5rem] font-bold leading-none tracking-tight text-brand-100 sm:text-[7.5rem]">{s.n}</span>
+              <div className="sm:pt-6">
+                <div className="text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">{s.title}</div>
+                <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-500">{s.body}</p>
               </div>
-            </div>
+            </RevealOnScroll>
           ))}
-        </StaggerChildren>
+        </div>
       </section>
 
-      <section className="bg-mint-50/40 py-20 sm:py-24">
-        <div className="mx-auto max-w-4xl px-6 sm:px-8">
-          <RevealOnScroll className="text-center">
-            <Eyebrow>Two triggers, one pipeline</Eyebrow>
-            <h2 className="mx-auto mt-5 max-w-lg text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">
-              Where a recovery case comes from
-            </h2>
+      <section className="bg-brand-950 py-24 sm:py-28">
+        <div className="mx-auto max-w-5xl px-6 sm:px-8">
+          <RevealOnScroll className="max-w-lg">
+            <Eyebrow tone="dark">Two triggers, one pipeline</Eyebrow>
+            <h2 className="mt-5 text-4xl font-bold tracking-tight text-white sm:text-5xl">Where a recovery case comes from</h2>
           </RevealOnScroll>
-          <StaggerChildren className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2" step={100}>
+          <StaggerChildren className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2" step={100}>
             {SCENARIOS.map((s) => (
-              <div key={s.title} className="rounded-2xl border border-slate-200/80 bg-white p-7 shadow-card">
-                <h3 className="text-lg font-bold text-brand-900">{s.title}</h3>
-                <p className="mt-2.5 text-sm leading-relaxed text-slate-500">{s.body}</p>
+              <div key={s.title} className="bg-brand-950 p-8 sm:p-10">
+                <h3 className="text-xl font-bold text-white">{s.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/60">{s.body}</p>
               </div>
             ))}
           </StaggerChildren>
         </div>
       </section>
 
-      <section className="py-20 sm:py-24">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 px-6 text-center sm:px-8">
+      <section className="bg-white py-24 sm:py-28">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 text-center sm:px-8">
           <RevealOnScroll>
-            <h2 className="text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">Explore the capabilities</h2>
-            <Link
-              to="/solutions"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-800"
-            >
+            <h2 className="text-4xl font-bold tracking-tight text-brand-900 sm:text-5xl">Explore the capabilities</h2>
+            <Link to="/solutions" className={buttonClasses({ size: "lg", className: "mt-8" })}>
               See solutions
               <ArrowRightIcon className="h-4 w-4" />
             </Link>

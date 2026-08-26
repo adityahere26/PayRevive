@@ -4,7 +4,7 @@ export function PageHeader({ eyebrow, title, badge, description, actions }) {
       <div>
         {eyebrow && <div className="mb-1">{eyebrow}</div>}
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-2xl font-bold tracking-tight text-brand-900">{title}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-brand-950 sm:text-4xl">{title}</h1>
           {badge}
         </div>
         {description && <p className="mt-1.5 max-w-2xl text-sm text-slate-500">{description}</p>}
