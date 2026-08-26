@@ -52,14 +52,22 @@ const SOLUTIONS = [
 export default function Solutions() {
   return (
     <div>
-      <section className="bg-brand-950 py-28 sm:py-40">
-        <div className="mx-auto max-w-3xl px-6 text-center sm:px-8">
-          <RevealOnScroll>
-            <Eyebrow tone="dark">Solutions</Eyebrow>
-            <h1 className="mx-auto mt-6 max-w-2xl text-[clamp(2.5rem,6.5vw,5.5rem)] font-bold leading-[0.98] tracking-tight text-white">
-              Everything revenue recovery needs — <span className="text-mint-300">nothing it doesn&rsquo;t.</span>
+      <section className="gradient-atmosphere glow-field relative overflow-hidden py-28 sm:py-40">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span
+            aria-hidden="true"
+            className="absolute -right-6 top-1/2 hidden -translate-y-1/2 select-none text-[16rem] font-bold leading-none tracking-tight text-primary/[0.05] lg:block"
+          >
+            05
+          </span>
+        </div>
+        <div className="relative mx-auto max-w-4xl px-6 sm:px-8">
+          <RevealOnScroll className="max-w-2xl">
+            <Eyebrow>Solutions</Eyebrow>
+            <h1 className="mt-6 text-[clamp(2.5rem,6.5vw,5.5rem)] font-bold leading-[0.98] tracking-tight text-brand-950">
+              Everything revenue recovery needs — <span className="text-accent">nothing it doesn&rsquo;t.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-white/60">
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-brand-600">
               Five capabilities, one deterministic pipeline underneath all of them.
             </p>
           </RevealOnScroll>
@@ -68,32 +76,27 @@ export default function Solutions() {
 
       {SOLUTIONS.map((s) => {
         const Icon = s.icon;
-        const dark = Number(s.n) % 2 === 0;
+        const tinted = Number(s.n) % 2 === 0;
         return (
-          <section key={s.title} className={`relative overflow-hidden py-24 sm:py-32 ${dark ? "bg-brand-950" : "bg-white"}`}>
+          <section key={s.title} className={`relative overflow-hidden py-24 sm:py-32 ${tinted ? "bg-mint-50/50" : "bg-white"}`}>
             <span
               aria-hidden="true"
-              className={`pointer-events-none absolute -top-6 right-6 select-none text-[9rem] font-bold leading-none tracking-tight sm:right-10 sm:text-[13rem] ${
-                dark ? "text-white/[0.04]" : "text-brand-900/[0.04]"
-              }`}
+              className="pointer-events-none absolute -top-6 right-6 select-none text-[9rem] font-bold leading-none tracking-tight text-brand-900/[0.04] sm:right-10 sm:text-[13rem]"
             >
               {s.n}
             </span>
             <div className="relative mx-auto max-w-5xl px-6 sm:px-8">
               <RevealOnScroll className="max-w-2xl">
-                <span className={`flex h-12 w-12 items-center justify-center rounded-full ${dark ? "bg-white text-brand-950" : "bg-brand-950 text-white"}`}>
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-950 text-white">
                   <Icon className="h-5 w-5" />
                 </span>
-                <h2 className={`mt-6 text-3xl font-bold tracking-tight sm:text-4xl ${dark ? "text-white" : "text-brand-900"}`}>{s.title}</h2>
-                <p className={`mt-4 max-w-lg text-base leading-relaxed ${dark ? "text-white/60" : "text-slate-500"}`}>{s.body}</p>
+                <h2 className="mt-6 text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">{s.title}</h2>
+                <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-500">{s.body}</p>
               </RevealOnScroll>
-              <RevealOnScroll
-                delay={100}
-                className={`mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 border-t pt-6 ${dark ? "border-white/10" : "border-brand-100"}`}
-              >
+              <RevealOnScroll delay={100} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-brand-100 pt-6">
                 {s.points.map((p) => (
-                  <span key={p} className={`label-mono flex items-center gap-2 text-[11px] uppercase ${dark ? "text-white/50" : "text-brand-500"}`}>
-                    <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-500" />
+                  <span key={p} className="label-mono flex items-center gap-2 text-[11px] uppercase text-brand-500">
+                    <CheckCircleIcon className="h-3.5 w-3.5 text-accent" />
                     {p}
                   </span>
                 ))}
@@ -104,18 +107,18 @@ export default function Solutions() {
       })}
 
       <section className="border-t border-brand-100 bg-white py-24 sm:py-28">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 text-center sm:px-8">
+        <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <RevealOnScroll>
             <h2 className="text-4xl font-bold tracking-tight text-brand-900 sm:text-5xl">Ready to see it work?</h2>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/signup" className={buttonClasses({ size: "lg" })}>
-                Get Started
-                <ArrowRightIcon className="h-4 w-4" />
-              </Link>
-              <Link to="/demo" className={buttonClasses({ variant: "secondary", size: "lg" })}>
-                View live demo
-              </Link>
-            </div>
+          </RevealOnScroll>
+          <RevealOnScroll delay={80} className="flex flex-wrap items-center gap-3">
+            <Link to="/signup" className={buttonClasses({ size: "lg" })}>
+              Get Started
+              <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+            <Link to="/demo" className={buttonClasses({ variant: "secondary", size: "lg" })}>
+              View live demo
+            </Link>
           </RevealOnScroll>
         </div>
       </section>

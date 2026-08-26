@@ -1,5 +1,5 @@
 const TONE_DOT = {
-  emerald: "bg-emerald-100 text-emerald-600",
+  emerald: "bg-brand-100 text-brand-900",
   brand: "bg-mint-100 text-brand-700",
   amber: "bg-amber-100 text-amber-600",
 };

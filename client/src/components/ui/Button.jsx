@@ -1,15 +1,18 @@
 // One button system for the whole product. `buttonClasses()` is exported separately so a
 // react-router <Link> can look exactly like a <button> without a polymorphic wrapper.
 //
-// Pill shape + hairline treatment (design system migration — see CLAUDE.md / session brief):
-// primary is the vivid green accent (the one place solid color dominates a control), secondary
-// is a hairline-bordered hollow pill that fills faintly on hover, tertiary is text-only.
+// Pill shape: primary is the exact brand gradient (--color-primary -> --color-accent, see
+// .gradient-cta in index.css), secondary is a hairline-bordered hollow pill, tertiary is
+// text-only. Hover is a subtle brightness lift, not a color swap — deliberately calm.
 
 const BASE =
   "inline-flex items-center justify-center gap-1.5 rounded-full font-medium tracking-tight transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40";
 
 const VARIANTS = {
-  primary: "bg-emerald-500 text-brand-950 hover:bg-emerald-400 active:bg-emerald-600",
+  primary: "gradient-cta text-white shadow-card hover:brightness-110 hover:-translate-y-px",
+  // For controls placed directly on a bounded dark/gradient panel (the auth split, the voice
+  // stage) where a second brand-gradient fill would disappear into the background.
+  inverse: "border border-white bg-white text-brand-950 hover:bg-transparent hover:text-white",
   secondary: "bg-transparent text-brand-900 border border-brand-200 hover:border-brand-400 hover:bg-brand-50",
   tertiary: "text-brand-700 hover:text-brand-950 hover:bg-brand-50",
   destructive: "bg-white text-red-600 border border-red-200 hover:bg-red-50",

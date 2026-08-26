@@ -24,7 +24,7 @@ export default function ForgotPassword() {
       statement="Access is temporary. Recovery isn't."
       statementSupport="Real password recovery lands with merchant accounts — until then, the live demo needs no password at all."
       footer={
-        <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
+        <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-brand-600">
           ← Back to log in
         </Link>
       }

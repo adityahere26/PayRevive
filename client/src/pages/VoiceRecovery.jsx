@@ -90,7 +90,7 @@ function VoiceWaveform({ active }) {
       {Array.from({ length: bars }).map((_, i) => (
         <span
           key={i}
-          className={`w-[3px] rounded-full ${active ? "bg-emerald-400 pr-voice-bar" : "bg-white/20"}`}
+          className={`w-[3px] rounded-full ${active ? "bg-white pr-voice-bar" : "bg-white/20"}`}
           style={{
             height: "100%",
             animationDelay: `${(i * 65) % 1000}ms`,
@@ -291,7 +291,7 @@ export default function VoiceRecovery() {
           }
           title={
             <span className="inline-flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-950 text-emerald-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-950 text-white">
                 <MicIcon className="h-4 w-4" />
               </span>
               Hinglish Voice Recovery
@@ -319,14 +319,14 @@ export default function VoiceRecovery() {
             title="Voice Conversation"
             action={
               <span className="label-mono inline-flex items-center gap-1.5 text-[11px] text-brand-400">
-                {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
+                {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-950" />}
                 LIVE
               </span>
             }
           >
             {/* The stage — always visible, shows current AI voice state + waveform */}
-            <div className="rounded-2xl bg-brand-950 px-6 py-10 text-center text-white sm:px-10">
-              <div className="label-mono text-[11px] text-emerald-300">VOICE AGENT</div>
+            <div className="gradient-brand rounded-2xl px-6 py-10 text-center text-white sm:px-10">
+              <div className="label-mono text-[11px] text-white/50">VOICE AGENT</div>
               <div className="mt-2 text-lg font-medium">{STATUS_LABELS[uiState]}</div>
               <div className="mt-6">
                 <VoiceWaveform active={isLive} />
@@ -334,7 +334,7 @@ export default function VoiceRecovery() {
 
               {uiState === "IDLE" && (
                 <div className="mt-7">
-                  <Button onClick={handleStart} disabled={starting || isTerminal} size="lg">
+                  <Button onClick={handleStart} disabled={starting || isTerminal} variant="inverse" size="lg">
                     {starting ? "Starting…" : "Start Voice Recovery"}
                   </Button>
                   {sessionError && <p className="mt-3 text-xs text-red-300">{sessionError}</p>}
@@ -382,7 +382,7 @@ export default function VoiceRecovery() {
                       onClick={uiState === "LISTENING" ? handleMicStop : handleMicStart}
                       disabled={uiState === "THINKING" || uiState === "RESPONDING" || uiState === "ENDED"}
                       className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                        uiState === "LISTENING" ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-500 text-brand-950 hover:bg-emerald-400"
+                        uiState === "LISTENING" ? "bg-red-600 text-white hover:bg-red-700" : "bg-brand-950 text-white hover:bg-brand-700"
                       }`}
                     >
                       <MicIcon className="h-4 w-4" />
@@ -397,7 +397,7 @@ export default function VoiceRecovery() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Type your response (Hinglish works)…"
                       disabled={uiState === "THINKING" || uiState === "ENDED"}
-                      className="flex-1 rounded-full border border-brand-200 px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/25 disabled:opacity-50"
+                      className="flex-1 rounded-full border border-brand-200 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-400/25 disabled:opacity-50"
                     />
                     <button
                       type="submit"
@@ -496,7 +496,7 @@ export default function VoiceRecovery() {
 
           <Link
             to={`/recovery-cases/${caseId}`}
-            className="block rounded-2xl border border-brand-900/10 bg-white/60 p-4 text-center text-xs text-brand-500 transition-colors hover:border-brand-300 hover:bg-emerald-50/50"
+            className="block rounded-2xl border border-brand-900/10 bg-white/60 p-4 text-center text-xs text-brand-500 transition-colors hover:border-brand-300 hover:bg-brand-50"
           >
             View full audit trail on the case page →
           </Link>

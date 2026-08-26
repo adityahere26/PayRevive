@@ -19,7 +19,7 @@ function StepIndicator({ current }) {
     <div className="flex items-center gap-2">
       {STEPS.map((label, i) => (
         <div key={label} className="flex flex-1 flex-col gap-1.5">
-          <div className={`h-1 rounded-full ${i <= current ? "bg-emerald-500" : "bg-brand-100"}`} />
+          <div className={`h-1 rounded-full ${i <= current ? "bg-brand-950" : "bg-brand-100"}`} />
           <span className={`hidden text-[11px] font-medium sm:block ${i <= current ? "text-brand-800" : "text-brand-300"}`}>{label}</span>
         </div>
       ))}
@@ -106,7 +106,7 @@ function RecoveryPreferencesStep({ form, setForm }) {
           max={5}
           value={form.maxAttempts}
           onChange={(e) => setForm((f) => ({ ...f, maxAttempts: Number(e.target.value) }))}
-          className="mt-2 w-full accent-emerald-500"
+          className="mt-2 w-full accent-brand-950"
         />
         <span className="text-xs text-brand-400">{form.maxAttempts} attempt{form.maxAttempts === 1 ? "" : "s"}</span>
       </label>
@@ -138,7 +138,7 @@ function ReadyStep() {
         merchant registration backend yet, use the live demo to see that dashboard with real
         recovery-case data instead.
       </p>
-      <Link to="/demo" className="mt-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-brand-950 hover:bg-emerald-400">
+      <Link to="/demo" className="gradient-cta mt-2 rounded-full px-6 py-3 text-sm font-semibold text-white transition-all hover:brightness-110">
         View the live demo
       </Link>
     </div>
@@ -157,18 +157,18 @@ export default function Onboarding() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
-      <div className="relative overflow-hidden bg-brand-950 px-6 pb-20 pt-14 sm:pb-24">
+      <div className="gradient-atmosphere glow-field relative overflow-hidden px-6 pb-20 pt-14 sm:pb-24">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-white/8" style={{ top: "6%", right: "8%" }} depth={10} />
-          <FloatingCurrency symbol="$" size="text-lg" tone="border-mint-300/30 text-mint-300" style={{ bottom: "16%", left: "10%" }} depth={16} floatDelay={0.6} circle />
+          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-primary/8" style={{ top: "6%", right: "8%" }} depth={10} />
+          <FloatingCurrency symbol="$" size="text-lg" tone="border-accent/30 text-accent" style={{ bottom: "16%", left: "10%" }} depth={16} floatDelay={0.6} circle />
         </div>
         <div className="relative mx-auto max-w-lg text-center">
           <Link to="/" className="inline-flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-brand-950">P</span>
-            <span className="label-mono text-xs font-semibold text-white">PAYREVIVE</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-950 text-sm font-bold text-white">P</span>
+            <span className="label-mono text-xs font-semibold text-brand-950">PAYREVIVE</span>
           </Link>
-          <p className="label-mono mt-5 text-[11px] text-mint-300">Set up in minutes</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">See what setup would look like.</h1>
+          <p className="label-mono mt-5 text-[11px] text-accent">Set up in minutes</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-brand-950 sm:text-4xl">See what setup would look like.</h1>
         </div>
       </div>
 

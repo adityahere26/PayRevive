@@ -5,4 +5,4 @@ export const authInputClass =
 
 export const authLabelClass = "block text-sm font-medium text-brand-600";
 
-export const authCheckboxClass = "h-3.5 w-3.5 rounded border-brand-300 text-emerald-600 focus:ring-emerald-500/40";
+export const authCheckboxClass = "h-3.5 w-3.5 rounded border-brand-300 text-brand-950 focus:ring-brand-400/40";

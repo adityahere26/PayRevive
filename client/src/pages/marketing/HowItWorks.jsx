@@ -53,15 +53,15 @@ const SCENARIOS = [
 export default function HowItWorks() {
   return (
     <div>
-      <section className="relative overflow-hidden bg-brand-950 py-28 sm:py-40">
+      <section className="gradient-atmosphere glow-field relative overflow-hidden py-28 sm:py-40">
         <div className="pointer-events-none absolute inset-0">
-          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-white/[0.06]" style={{ top: "14%", left: "8%" }} depth={10} />
+          <FloatingCurrency symbol="₹" size="text-7xl" tone="text-primary/[0.06]" style={{ top: "14%", left: "8%" }} depth={10} />
           <FloatingCurrency
             circle
             symbol="$"
             size="flex h-14 w-14 text-lg"
-            tone="border-white/15 text-mint-200"
-            circleClassName="border"
+            tone="border-accent/25 text-accent"
+            circleClassName="border bg-white/70"
             style={{ bottom: "16%", right: "12%" }}
             depth={16}
             floatDelay={0.5}
@@ -69,12 +69,12 @@ export default function HowItWorks() {
         </div>
         <div className="relative mx-auto max-w-4xl px-6 sm:px-8">
           <RevealOnScroll>
-            <Eyebrow tone="dark">How it works</Eyebrow>
-            <h1 className="mt-6 text-[clamp(2.75rem,7vw,6.5rem)] font-bold leading-[0.95] tracking-tight text-white">
+            <Eyebrow>How it works</Eyebrow>
+            <h1 className="mt-6 text-[clamp(2.75rem,7vw,6.5rem)] font-bold leading-[0.95] tracking-tight text-brand-950">
               One pipeline.
-              <span className="block text-mint-300">Every safeguard.</span>
+              <span className="block text-accent">Every safeguard.</span>
             </h1>
-            <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/60">
+            <p className="mt-8 max-w-xl text-lg leading-relaxed text-brand-600">
               Detect → Diagnose → Decide → Policy check → Act → Observe → Recover → Measure →
               Audit. Every recovery case moves through all nine stages, traceably.
             </p>
@@ -102,7 +102,7 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      <section className="bg-brand-950 py-24 sm:py-28">
+      <section className="gradient-brand py-24 sm:py-28">
         <div className="mx-auto max-w-5xl px-6 sm:px-8">
           <RevealOnScroll className="max-w-lg">
             <Eyebrow tone="dark">Two triggers, one pipeline</Eyebrow>
@@ -110,7 +110,7 @@ export default function HowItWorks() {
           </RevealOnScroll>
           <StaggerChildren className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2" step={100}>
             {SCENARIOS.map((s) => (
-              <div key={s.title} className="bg-brand-950 p-8 sm:p-10">
+              <div key={s.title} className="gradient-brand p-8 sm:p-10">
                 <h3 className="text-xl font-bold text-white">{s.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-white/60">{s.body}</p>
               </div>
@@ -120,10 +120,12 @@ export default function HowItWorks() {
       </section>
 
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 text-center sm:px-8">
+        <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <RevealOnScroll>
             <h2 className="text-4xl font-bold tracking-tight text-brand-900 sm:text-5xl">Explore the capabilities</h2>
-            <Link to="/solutions" className={buttonClasses({ size: "lg", className: "mt-8" })}>
+          </RevealOnScroll>
+          <RevealOnScroll delay={80}>
+            <Link to="/solutions" className={buttonClasses({ size: "lg" })}>
               See solutions
               <ArrowRightIcon className="h-4 w-4" />
             </Link>

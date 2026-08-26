@@ -10,7 +10,7 @@ export function FloatingReview({ name, quote, amount, status = "Recovered", labe
       <HoverReveal
         label={`${name} — ${label}, ${formatINR(amount)}, ${status}. Focus for details.`}
         trigger={
-          <span aria-hidden="true" className="flex h-12 w-12 cursor-default items-center justify-center rounded-full border border-white/25 bg-white/10 text-sm font-semibold text-white backdrop-blur-sm">
+          <span aria-hidden="true" className="gradient-brand flex h-12 w-12 cursor-default items-center justify-center rounded-full text-sm font-semibold text-white shadow-card-hover">
             {name[0]}
           </span>
         }
@@ -26,7 +26,7 @@ export function FloatingReview({ name, quote, amount, status = "Recovered", labe
           <p className="mt-2 text-sm italic leading-snug text-slate-600">&ldquo;{quote}&rdquo;</p>
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
             <span className="text-sm font-bold text-brand-900">{formatINR(amount)}</span>
-            <span className="text-[11px] font-medium uppercase tracking-wide text-emerald-600">{status}</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-brand-500">{status}</span>
           </div>
         </div>
       </HoverReveal>

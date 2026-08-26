@@ -22,9 +22,9 @@ function passwordStrength(pw) {
     { label: "Too short", tone: "bg-red-400" },
     { label: "Weak", tone: "bg-red-400" },
     { label: "Fair", tone: "bg-amber-400" },
-    { label: "Good", tone: "bg-emerald-400" },
-    { label: "Strong", tone: "bg-emerald-500" },
-    { label: "Very strong", tone: "bg-emerald-600" },
+    { label: "Good", tone: "bg-brand-600" },
+    { label: "Strong", tone: "bg-brand-800" },
+    { label: "Very strong", tone: "bg-brand-950" },
   ];
   const level = levels[Math.min(score, levels.length - 1)];
   return { ...level, pct: Math.min(100, (score / 5) * 100) };
@@ -68,7 +68,7 @@ export default function Signup() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
+          <Link to="/login" className="font-medium text-brand-950 underline underline-offset-2 hover:text-brand-600">
             Log in
           </Link>
         </>

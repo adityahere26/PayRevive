@@ -84,7 +84,7 @@ export default function Contact() {
                   required
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="mt-2 w-full border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  className="mt-2 w-full border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-brand-950 focus:outline-none focus:ring-0"
                 />
               </label>
               <label className="block">
@@ -94,7 +94,7 @@ export default function Contact() {
                   required
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  className="mt-2 w-full border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  className="mt-2 w-full border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-brand-950 focus:outline-none focus:ring-0"
                 />
               </label>
               <label className="block">
@@ -104,7 +104,7 @@ export default function Contact() {
                   rows={3}
                   value={form.message}
                   onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-                  className="mt-2 w-full resize-none border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  className="mt-2 w-full resize-none border-0 border-b border-brand-200 bg-transparent px-0 py-2 text-brand-900 focus:border-brand-950 focus:outline-none focus:ring-0"
                 />
               </label>
               <Button type="submit" disabled={status === "sending"} className="w-full sm:w-auto">
@@ -129,9 +129,9 @@ export default function Contact() {
 
       <section className="border-t border-brand-100 bg-white py-24 sm:py-28">
         <div className="mx-auto max-w-3xl px-6 sm:px-8">
-          <RevealOnScroll className="text-center">
+          <RevealOnScroll>
             <Eyebrow>FAQ</Eyebrow>
-            <h2 className="mx-auto mt-5 max-w-md text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">Questions, answered plainly</h2>
+            <h2 className="mt-5 max-w-md text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">Questions, answered plainly</h2>
           </RevealOnScroll>
           <div className="mt-14 border-t border-brand-100">
             {FAQS.map((item, i) => (

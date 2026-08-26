@@ -30,7 +30,7 @@ export default function Layout() {
             </span>
             <span className="label-mono text-xs font-semibold text-brand-950">PAYREVIVE</span>
           </Link>
-          <nav className="order-3 flex w-full flex-wrap items-center gap-1 sm:order-none sm:w-auto sm:flex-nowrap">
+          <nav className="order-3 flex w-full flex-wrap items-center gap-1 sm:order-0 sm:w-auto sm:flex-nowrap">
             {PRIMARY_NAV_ITEMS.map((item) => {
               const active = location.pathname.startsWith(item.to);
               return (
@@ -38,7 +38,7 @@ export default function Layout() {
                   key={item.to}
                   to={item.to}
                   className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors sm:px-3.5 ${
-                    active ? "text-emerald-600" : "text-slate-500 hover:text-brand-950"
+                    active ? "bg-brand-950 text-white" : "text-slate-500 hover:text-brand-950"
                   }`}
                 >
                   {item.label}
@@ -53,7 +53,7 @@ export default function Layout() {
                   key={item.to}
                   to={item.to}
                   className={`hidden shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors lg:inline-block ${
-                    active ? "text-emerald-600" : "text-slate-400 hover:text-brand-800"
+                    active ? "text-brand-950 underline underline-offset-4" : "text-slate-400 hover:text-brand-800"
                   }`}
                 >
                   {item.label}
@@ -62,11 +62,11 @@ export default function Layout() {
             })}
           </nav>
           <span className="hidden shrink-0 items-center gap-1.5 text-xs font-medium text-slate-400 lg:flex">
-            <span className={`h-1.5 w-1.5 rounded-full ${authenticated ? "bg-emerald-500" : "bg-slate-300"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${authenticated ? "bg-brand-950" : "bg-slate-300"}`} />
             {authenticated ? "Demo session active" : "Not signed in"}
           </span>
           <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full lg:hidden ${authenticated ? "bg-emerald-500" : "bg-slate-300"}`}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full lg:hidden ${authenticated ? "bg-brand-950" : "bg-slate-300"}`}
             title={authenticated ? "Demo session active" : "Not signed in"}
           />
         </div>

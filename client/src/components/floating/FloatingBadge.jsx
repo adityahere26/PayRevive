@@ -1,8 +1,10 @@
 const TONE_CLASS = {
   mint: "bg-mint-100 text-brand-800 border-brand-200",
-  dark: "bg-white/10 text-mint-100 border-white/20",
-  amber: "bg-amber-500/15 text-amber-200 border-amber-400/30",
-  emerald: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30",
+  // A solid brand-dark chip — the one tone opaque enough to float over either a light or a
+  // bounded dark section.
+  dark: "bg-primary text-white border-primary/40 shadow-card",
+  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  emerald: "bg-mint-100 text-accent border-accent/25",
 };
 
 // Small floating decorative label (e.g. "AI DECISION", "POLICY CHECKED") — text only, no

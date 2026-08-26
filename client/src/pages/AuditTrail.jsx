@@ -76,7 +76,7 @@ function SourceTag({ metadata }) {
 function TimelineRow({ entry }) {
   return (
     <li className="group relative border-b border-brand-900/8 py-5 pl-8 last:border-0 sm:pl-10">
-      <span className="absolute left-0 top-6 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 border-white bg-brand-400 ring-1 ring-brand-900/10 group-hover:bg-emerald-500 sm:left-1" />
+      <span className="absolute left-0 top-6 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 border-white bg-brand-400 ring-1 ring-brand-900/10 group-hover:bg-brand-950 sm:left-1" />
       <span className="absolute left-[3px] top-8 bottom-0 w-px bg-brand-900/8 sm:left-[7px]" />
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">

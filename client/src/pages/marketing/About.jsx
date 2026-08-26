@@ -26,19 +26,20 @@ const PRINCIPLES = [
 export default function About() {
   return (
     <div>
-      <section className="relative overflow-hidden bg-brand-950 py-28 sm:py-40">
+      <section className="gradient-atmosphere glow-field relative overflow-hidden py-28 sm:py-40">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <FloatingCurrency symbol="₹" size="text-6xl" tone="text-white/10" style={{ top: "18%", right: "12%" }} depth={12} />
-          <FloatingCurrency symbol="$" size="text-3xl" tone="text-mint-300/20" style={{ bottom: "16%", left: "10%" }} depth={18} floatDelay={0.7} />
+          <FloatingCurrency symbol="₹" size="text-8xl" tone="text-primary/[0.06]" style={{ top: "8%", right: "-2%" }} depth={12} />
+          <FloatingCurrency symbol="₹" size="text-2xl" tone="border-accent/30 text-accent" style={{ top: "40%", right: "16%" }} depth={16} circle floatDelay={0.4} />
+          <FloatingCurrency symbol="$" size="text-3xl" tone="text-secondary/25" style={{ bottom: "14%", right: "28%" }} depth={18} floatDelay={0.9} />
         </div>
-        <div className="relative mx-auto max-w-3xl px-6 text-center sm:px-8">
-          <RevealOnScroll>
-            <Eyebrow tone="dark">About PayRevive</Eyebrow>
-            <h1 className="mt-6 text-[clamp(2.75rem,7vw,6rem)] font-bold leading-[0.97] tracking-tight text-white">
+        <div className="relative mx-auto max-w-5xl px-6 sm:px-8">
+          <RevealOnScroll className="max-w-2xl">
+            <Eyebrow>About PayRevive</Eyebrow>
+            <h1 className="mt-6 text-[clamp(2.75rem,7vw,6rem)] font-bold leading-[0.97] tracking-tight text-brand-950">
               Revenue recovery,
-              <span className="block text-mint-300">built to be trusted.</span>
+              <span className="block text-accent">built to be trusted.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/60">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-brand-600">
               PayRevive is an AI revenue recovery agent built for the Razorpay AI Buildathon —
               Track 03. It detects revenue at risk, diagnoses why a payment failed, and takes a
               bounded, policy-checked action to recover it.
@@ -79,25 +80,27 @@ export default function About() {
         </div>
       </section>
 
-      <section className="bg-brand-950 py-28 sm:py-36">
-        <div className="mx-auto max-w-3xl px-6 text-center sm:px-8">
+      <section className="gradient-brand py-28 sm:py-36">
+        <div className="mx-auto max-w-4xl px-6 sm:px-8">
           <RevealOnScroll>
-            <p className="text-[clamp(2.25rem,6vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white">
-              Payments fail.
-              <span className="block text-mint-300">Revenue shouldn&rsquo;t.</span>
+            <p className="max-w-2xl text-[clamp(2.25rem,6vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-white">
+              Built for one thing.
+              <span className="block text-accent-light">Not eleven, bolted together.</span>
             </p>
           </RevealOnScroll>
         </div>
       </section>
 
       <section className="bg-white py-20 sm:py-24">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 px-6 text-center sm:px-8">
-          <RevealOnScroll>
+        <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <RevealOnScroll className="max-w-md">
             <h2 className="text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">See it in the product</h2>
-            <p className="mx-auto mt-3 max-w-md text-sm text-slate-500">
+            <p className="mt-3 text-sm text-slate-500">
               The fastest way to understand PayRevive is the live demo — no account required.
             </p>
-            <Link to="/demo" className={buttonClasses({ size: "lg", className: "mt-6" })}>
+          </RevealOnScroll>
+          <RevealOnScroll delay={80}>
+            <Link to="/demo" className={buttonClasses({ size: "lg" })}>
               View the live demo
               <ArrowRightIcon className="h-4 w-4" />
             </Link>

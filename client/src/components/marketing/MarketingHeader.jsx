@@ -35,7 +35,7 @@ export function MarketingHeader() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `label-mono relative py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-emerald-600 after:transition-all after:duration-300 ${
+                `label-mono relative py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-brand-950 after:transition-all after:duration-300 ${
                   isActive
                     ? "text-brand-950 after:w-full"
                     : "text-slate-500 after:w-0 hover:text-brand-950 hover:after:w-full"
@@ -54,7 +54,7 @@ export function MarketingHeader() {
           <MagneticButton
             as={Link}
             to="/signup"
-            className="items-center gap-1.5 rounded-full border border-brand-950 bg-brand-950 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-transparent hover:text-brand-950"
+            className="gradient-cta items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
           >
             Get Started
             <ArrowRightIcon className="h-3.5 w-3.5" />
@@ -80,7 +80,7 @@ export function MarketingHeader() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `text-2xl font-semibold tracking-tight ${isActive ? "text-emerald-600" : "text-brand-950"}`
+                  `text-2xl font-semibold tracking-tight ${isActive ? "text-brand-950 underline underline-offset-4" : "text-brand-950"}`
                 }
               >
                 {item.label}
@@ -91,7 +91,7 @@ export function MarketingHeader() {
             <Link to="/login" className="rounded-full border border-brand-200 px-4 py-3 text-center text-sm font-medium text-brand-800">
               Log in
             </Link>
-            <Link to="/signup" className="rounded-full bg-brand-950 px-4 py-3 text-center text-sm font-semibold text-white">
+            <Link to="/signup" className="gradient-cta rounded-full px-4 py-3 text-center text-sm font-semibold text-white">
               Get Started
             </Link>
           </div>

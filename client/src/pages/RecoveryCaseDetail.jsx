@@ -347,7 +347,7 @@ export default function RecoveryCaseDetail() {
               </thead>
               <tbody className="divide-y divide-brand-900/8">
                 {auditLog.map((entry) => (
-                  <tr key={entry._id} className="transition-colors hover:bg-emerald-50/50">
+                  <tr key={entry._id} className="transition-colors hover:bg-brand-50">
                     <td className="whitespace-nowrap px-6 py-2.5 text-brand-500">{new Date(entry.timestamp).toLocaleString()}</td>
                     <td className="px-6 py-2.5 font-mono text-xs text-brand-700">{entry.eventType}</td>
                     <td className="px-6 py-2.5 text-brand-500">{entry.reason || "—"}</td>

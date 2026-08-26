@@ -4,9 +4,10 @@
 // dot and tracked-out monospace text, echoing the reference's understated section labels.
 export function Eyebrow({ children, tone = "light", className = "" }) {
   const toneClass = tone === "dark" ? "text-white/60" : "text-brand-500";
+  const dotClass = tone === "dark" ? "bg-white" : "bg-brand-950";
   return (
     <span className={`label-mono inline-flex items-center gap-2 text-[11px] font-medium uppercase ${toneClass} ${className}`}>
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
       {children}
     </span>
   );

@@ -59,7 +59,7 @@ export default function RecoveryCases() {
         <PageHeader
           eyebrow={
             <span className="label-mono inline-flex items-center gap-2 text-[11px] text-brand-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-950" />
               RECOVERY CASES
             </span>
           }
@@ -81,7 +81,7 @@ export default function RecoveryCases() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="rounded-full border border-brand-200 bg-white px-3.5 py-1.5 text-sm text-brand-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/25"
+              className="rounded-full border border-brand-200 bg-white px-3.5 py-1.5 text-sm text-brand-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-400/25"
             >
               {STATUS_FILTERS.map((s) => (
                 <option key={s || "ALL"} value={s}>
@@ -139,7 +139,7 @@ export default function RecoveryCases() {
               </thead>
               <tbody className="divide-y divide-brand-900/8">
                 {cases.map((c) => (
-                  <tr key={c._id} className="transition-colors hover:bg-emerald-50/50">
+                  <tr key={c._id} className="transition-colors hover:bg-brand-50">
                     <td className="py-4 pr-6">
                       <Link to={`/recovery-cases/${c._id}`} className="font-mono text-xs text-brand-500 hover:text-brand-950 hover:underline">
                         {c._id}
@@ -167,7 +167,7 @@ export default function RecoveryCases() {
               <Link
                 key={c._id}
                 to={`/recovery-cases/${c._id}`}
-                className="block py-4 transition-colors hover:bg-emerald-50/50"
+                className="block py-4 transition-colors hover:bg-brand-50"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-lg font-semibold text-brand-950">{formatINR(c.amount)}</span>

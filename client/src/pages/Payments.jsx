@@ -137,7 +137,7 @@ function OverviewHero({ overview, loading, error, onRetry }) {
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-brand-900/10 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 px-6 py-10 shadow-card-hover sm:px-10 sm:py-14">
+    <div className="gradient-brand relative overflow-hidden rounded-3xl px-6 py-10 shadow-card-hover sm:px-10 sm:py-14">
       <CurrencyMotifs />
       {recoveredHighlights.map((row, i) => (
         <FloatingRecoveryChip key={row.paymentId} row={row} style={chipPositions[i]} delay={i * 1.3} />

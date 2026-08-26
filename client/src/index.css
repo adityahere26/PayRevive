@@ -1,68 +1,73 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@300..800&family=Google+Sans+Code:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 /* ==========================================================================
-   PayRevive design tokens (Tailwind v4 @theme — generates bg-ink-900,
-   text-mint-300, etc. as real utility classes; nothing here is a separate
-   styling system, it's the same Tailwind pipeline every page already uses).
+   PayRevive design tokens (Tailwind v4 @theme — generates bg-brand-900,
+   bg-accent, text-secondary, etc. as real utility classes; nothing here is a
+   separate styling system, it's the same Tailwind pipeline every page uses).
 
-   Design language: editorial black/white/off-white with a single restrained
-   vivid-green accent, derived from the Cyrclo Webflow template's structural
-   DNA (near-black primary surface, hairline white-alpha borders, pill
-   buttons, generous section rhythm, wide containers) layered with
-   PayRevive's own green as the sole accent color — see repo history for the
-   session that migrated off the previous teal/mint dashboard palette.
+   Design language: premium fintech editorial — dark, gradient, and white/
+   near-white sections deliberately alternate down the marketing page (see
+   § Gradient system) instead of staying flat white, built from four fixed
+   brand hexes (never substituted): #092328 (primary/ink), #12544F
+   (secondary/teal), #2A835F (accent/green), #8BBB92 (accent-light/mint).
+   The "brand-*" ink scale below is tinted FROM #092328 rather than true
+   black, so ordinary dark text/borders on light sections already carry the
+   brand hue; full #092328 fills (.gradient-deep) are reserved for a handful
+   of intentional dramatic-contrast sections (hero, one mid-page section,
+   footer) — most of the page still reads white/airy in between.
 
-   PRIMARY   -> brand-*   near-black/graphite "ink" scale — primary text,
-                          primary surfaces, dark sections, buttons.
-   ACCENT    -> emerald-* (Tailwind's stock scale) — CTAs, success, positive
-                          metrics, progress, selected states.
-   SECONDARY -> mint-*    the SAME green hue as the accent, in paler/mid
-                          tints — soft highlight surfaces, accent text on
-                          dark backgrounds, badges.
-   Status colors reuse stock Tailwind scales (amber/red/cyan/slate) for
-   semantic meaning (risk/failure/in-progress/neutral) — these are
-   functional, not decorative, and are deliberately kept distinct from the
-   brand accent so a status is never ambiguous with "this is the CTA color."
+   PRIMARY    -> primary/secondary/accent/accent-light — the four fixed
+                 brand hexes, used directly for CTAs, links, gradients.
+   INK        -> brand-*     text + hairline scale, tinted from #092328.
+   SOFT GREEN -> mint-*      pale accent-light tints — soft surfaces, badges,
+                 atmospheric gradient stops.
+   Status colors (amber/red/cyan/slate, plus emerald-*, Tailwind's stock
+   scales) stay reserved for real product data (RECOVERED/POLICY_APPROVED
+   state, a recovered amount, a live audit step) — decoration uses the brand
+   palette above, data uses these.
    ========================================================================== */
 @theme {
-  --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Google Sans Flex", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Google Sans Code", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Ink — near-black/graphite. brand-700 (#1f1f1f) matches the reference's own
-     primary dark-surface token exactly; 950 is true black for full-bleed
-     dark sections. */
-  --color-brand-50: #f7f7f7;
-  --color-brand-100: #ececec;
-  --color-brand-200: #dcdcdc;
-  --color-brand-300: #bfbfbf;
-  --color-brand-400: #969696;
-  --color-brand-500: #707070;
-  --color-brand-600: #4d4d4d;
-  --color-brand-700: #1f1f1f;
-  --color-brand-800: #141414;
-  --color-brand-900: #0a0a0a;
-  --color-brand-950: #000000;
+  /* The four fixed brand hexes — used directly (bg-primary, from-accent, text-secondary…). */
+  --color-primary: #092328;
+  --color-secondary: #12544f;
+  --color-accent: #2a835f;
+  --color-accent-light: #8bbb92;
 
-  /* The single PayRevive green, in paler/mid tints — used as accent text on
-     dark surfaces (mint-200/300) and as soft tinted surfaces on light ones
-     (mint-50/100). The vivid, saturated version of the same hue is
-     Tailwind's stock emerald-500/600, used directly for CTAs and success. */
-  --color-mint-50: #eefbf3;
-  --color-mint-100: #d3f5e0;
-  --color-mint-200: #a3ebc0;
-  --color-mint-300: #6ee0a0;
+  /* Ink scale, tinted from --color-primary (#092328) instead of true black — every
+     text-brand-900/950 call site across the app inherits the brand hue for free. */
+  --color-brand-50: #f5f9f8;
+  --color-brand-100: #e6efed;
+  --color-brand-200: #c8d9d6;
+  --color-brand-300: #9fb9b5;
+  --color-brand-400: #6d8d89;
+  --color-brand-500: #486e6a;
+  --color-brand-600: #325450;
+  --color-brand-700: #1e3c39;
+  --color-brand-800: #142e2b;
+  --color-brand-900: #0c2724;
+  --color-brand-950: #092328;
 
-  --color-canvas: #f7f7f5;
+  /* Soft accent-green tints, anchored on --color-accent-light (#8bbb92) — soft surfaces,
+     badges, hover states, and the two exact atmosphere-gradient stops from the brief. */
+  --color-mint-50: #f3faf8;
+  --color-mint-100: #eaf7f1;
+  --color-mint-200: #cfe9d7;
+  --color-mint-300: #8bbb92;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03), 0 6px 20px -8px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.04), 0 12px 28px -8px rgba(0, 0, 0, 0.1);
+  --color-canvas: #ffffff;
+
+  --shadow-card: 0 1px 2px rgba(9, 35, 40, 0.04), 0 6px 20px -8px rgba(9, 35, 40, 0.08);
+  --shadow-card-hover: 0 2px 4px rgba(9, 35, 40, 0.05), 0 16px 32px -10px rgba(9, 35, 40, 0.14);
 }
 
-/* Flat off-white canvas — no color glow. The old build ran a soft mint/cyan
-   radial gradient behind every page; the editorial system relies on real
-   black/white section contrast instead of an ambient tint. */
+/* White page background — atmosphere comes from .gradient-atmosphere (applied per-section,
+   not globally) so most of the page stays a clean white, per the brief's "avoid excessive
+   gradients on every component." */
 body {
   background-color: var(--color-canvas);
 }
@@ -71,22 +76,113 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-/* Hairline border tokens — the reference's signature thin 1px division
-   (white-alpha on dark surfaces, ink-alpha on light ones) used in place of
-   heavy shadows/borders wherever a component needs a boundary. */
+/* Hairline border tokens — ink-alpha everywhere now that dark full-page sections are gone;
+   hairline-dark still exists for the handful of bounded dark panels (footer, auth split,
+   voice-agent stage) that keep a deep gradient fill. */
 .hairline-light {
-  border-color: rgb(10 10 10 / 0.1);
+  border-color: rgb(9 35 40 / 0.1);
 }
 .hairline-dark {
   border-color: rgb(255 255 255 / 0.14);
 }
 
-/* Small mono uppercase label — the eyebrow/caption voice used above nearly
-   every section heading (Eyebrow.jsx) and for status/meta text throughout
-   the product. */
+/* Small mono uppercase label — the eyebrow/caption voice above nearly every section heading
+   (Eyebrow.jsx) and for status/meta text throughout the product. */
 .label-mono {
   font-family: var(--font-mono);
   letter-spacing: 0.16em;
+}
+
+/* ==========================================================================
+   Gradient system — every gradient in the product draws from these named
+   utilities rather than one-off bg-gradient-to-* strings, so the page's
+   alternating light/gradient/dark rhythm reads as one deliberate system
+   rather than per-section improvisation.
+   ========================================================================== */
+
+/* The page-level atmosphere: white -> the brief's exact two stops (#F3FAF8, #EAF7F1) — used
+   behind hero/section content, never as the flat body background. */
+.gradient-atmosphere {
+  background: linear-gradient(180deg, #ffffff 0%, #f3faf8 55%, #eaf7f1 100%);
+}
+
+/* Bounded dark-gradient fill (primary -> secondary -> accent) for the handful of intentional
+   accent panels — buttons, the footer, a hero metric card, the auth split panel, the voice
+   stage — never a full page. */
+.gradient-brand {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 55%, var(--color-accent) 100%);
+}
+
+/* Primary CTA gradient exactly as specified: primary -> accent. */
+.gradient-cta {
+  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}
+
+/* Deep, dramatic fill for the bounded full-dark contrast sections (brief §10) — distinct from
+   .gradient-brand (which always carries a diagonal shift toward --color-accent) so a section
+   can commit to pure #092328 without picking up green in the corner. */
+.gradient-deep {
+  background: linear-gradient(180deg, #092328 0%, #0c2724 100%);
+}
+
+/* Section-to-section connective tissue (brief §2/§15) — each stop pair named in the brief,
+   used on the thin transition wedge between two adjacent sections instead of a hard cut. */
+.gradient-transition-deep-teal {
+  background: linear-gradient(180deg, #092328 0%, #12544f 100%);
+}
+.gradient-transition-teal-green {
+  background: linear-gradient(180deg, #12544f 0%, #2a835f 100%);
+}
+.gradient-transition-green-mint {
+  background: linear-gradient(180deg, #2a835f 0%, #8bbb92 100%);
+}
+.gradient-transition-mint-white {
+  background: linear-gradient(180deg, #8bbb92 0%, #f7faf9 100%);
+}
+
+/* The light-green/white metrics-section wash (brief §9) — extremely subtle, so large numbers
+   stay the visual focus rather than the background. */
+.gradient-mint-wash {
+  background: linear-gradient(180deg, #ffffff 0%, #eef5f2 50%, #f7faf9 100%);
+}
+
+/* "Soft blue-green gradient" section fill (brief §2, used for "How PayRevive works" and the
+   AI-recovery pipeline visual) — visibly more saturated than .gradient-mint-wash so it reads
+   as its own rhythm beat between white and the deep sections, without going as dark as
+   .gradient-brand. */
+.gradient-soft-teal {
+  background: linear-gradient(160deg, #f3faf8 0%, #dcebe6 45%, #cfe3dd 100%);
+}
+
+/* Soft radial "glow" pair — the brief's "very subtle blue glow + very subtle green glow" on
+   white. Applied as ::before/::after on any element with .glow-field (position: relative
+   required on that element); purely decorative, so it's safe to clip/overflow-hidden. */
+.glow-field {
+  position: relative;
+  isolation: isolate;
+}
+.glow-field::before,
+.glow-field::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(70px);
+  pointer-events: none;
+}
+.glow-field::before {
+  width: 32rem;
+  height: 32rem;
+  top: -10rem;
+  right: -8rem;
+  background: radial-gradient(circle, rgb(18 84 79 / 0.14) 0%, transparent 70%);
+}
+.glow-field::after {
+  width: 28rem;
+  height: 28rem;
+  bottom: -8rem;
+  left: -6rem;
+  background: radial-gradient(circle, rgb(139 187 146 / 0.22) 0%, transparent 70%);
 }
 
 /* ==========================================================================
@@ -115,16 +211,85 @@ body {
   }
 }
 
-.pr-float {
-  animation: pr-float 7s ease-in-out infinite;
+/* PaymentCard3D (brief §6/§12) — a slower, larger-amplitude float than the small currency
+   glyphs (it's the visual anchor, not a background accent) plus a very slight rotation drift
+   so the card never looks perfectly static between float cycles. */
+@keyframes pr-card-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(0.6deg);
+  }
 }
+.pr-card-float {
+  animation: pr-card-float 9s ease-in-out infinite;
+}
+/* perspective context for the card's own tilt transform (set inline per-instance, see
+   PaymentCard3D.jsx) so it reads as viewed at a slight angle rather than flat. */
+.pr-card-tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease-out;
+}
+/* Diagonal highlight sweep standing in for a light source on the card face. */
+.pr-card-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.16) 0%, transparent 28%, transparent 72%, rgb(255 255 255 / 0.08) 100%);
+  pointer-events: none;
+}
+
+/* 3D coin (brief §4/§13) — radial gradient body reads as a lit sphere/disc, a bright rim
+   highlight, and a slow spin distinct from the vertical pr-float drift used elsewhere. */
+@keyframes pr-coin-spin {
+  0%,
+  100% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(18deg);
+  }
+}
+.pr-coin {
+  animation: pr-coin-spin 6.5s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
 .pr-marquee-track {
   animation: pr-marquee linear infinite;
 }
 
+/* One-shot entrance for hero decorative objects (brief §7 "on page load ... coins float into
+   place, payment status card appears") — applied to a plain absolute-positioned wrapper
+   *around* a floating component (see HeroReveal.jsx) so this transform never fights the
+   floating component's own looping pr-float/pr-card-float/pr-coin transform on the same
+   element. `both` keeps the pre-animation state (opacity 0) until animation-delay elapses. */
+@keyframes pr-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.pr-hero-in {
+  animation: pr-hero-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pr-float,
+  .pr-card-float,
+  .pr-coin,
   .pr-marquee-track {
     animation: none !important;
+  }
+  .pr-hero-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

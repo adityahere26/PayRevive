@@ -48,7 +48,7 @@ export default function Login() {
       footer={
         <>
           No account?{" "}
-          <Link to="/signup" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
+          <Link to="/signup" className="font-medium text-brand-950 underline underline-offset-2 hover:text-brand-600">
             Sign up
           </Link>
         </>
@@ -88,7 +88,7 @@ export default function Login() {
             />
             Remember me
           </label>
-          <Link to="/forgot-password" className="font-medium text-brand-950 underline underline-offset-2 hover:text-emerald-600">
+          <Link to="/forgot-password" className="font-medium text-brand-950 underline underline-offset-2 hover:text-brand-600">
             Forgot password?
           </Link>
         </div>

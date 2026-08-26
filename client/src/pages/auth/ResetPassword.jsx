@@ -39,7 +39,7 @@ export default function ResetPassword() {
             new one, or use the live demo — no password required.
           </p>
           <div className="flex w-full flex-col gap-2">
-            <Link to="/forgot-password" className="rounded-full bg-emerald-500 px-4 py-2.5 text-center text-sm font-semibold text-brand-950 hover:bg-emerald-400">
+            <Link to="/forgot-password" className="gradient-cta rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition-all hover:brightness-110">
               Request a new link
             </Link>
             <Link to="/demo" className="rounded-full border border-brand-900/15 px-4 py-2.5 text-center text-sm font-medium text-brand-800 hover:bg-brand-50">

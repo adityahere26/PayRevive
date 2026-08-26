@@ -82,7 +82,7 @@ function RecoverySourceBadge({ recoveryCase }) {
 // mirroring Payments' Total Clients + Passed/Failed split.
 function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onToggleForm }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-brand-900/10 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 px-6 py-10 shadow-card-hover sm:px-10 sm:py-14">
+    <div className="gradient-brand relative overflow-hidden rounded-3xl px-6 py-10 shadow-card-hover sm:px-10 sm:py-14">
       <div className="relative flex flex-wrap items-start justify-between gap-6">
         <div className="max-w-xl">
           <Eyebrow tone="dark">Recovery overview</Eyebrow>

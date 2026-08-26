@@ -8,14 +8,15 @@ const FOOTER_LINKS = [
   { to: "/contact", label: "Contact" },
 ];
 
-// Large editorial black footer — a closing statement, not a small conventional link list.
+// Large editorial footer on the deep brand fill (#092328) — a closing statement, not a small
+// conventional link list.
 export function MarketingFooter() {
   return (
-    <footer className="bg-brand-950 text-white">
+    <footer className="gradient-deep text-white">
       <div className="mx-auto max-w-6xl px-6 py-24 sm:px-8 sm:py-32">
         <h2 className="max-w-3xl text-5xl font-semibold leading-[0.98] tracking-tight sm:text-7xl lg:text-8xl">
           Recover what
-          <span className="block text-mint-300">can be recovered.</span>
+          <span className="block text-accent-light">can be recovered.</span>
         </h2>
 
         <div className="hairline-dark mt-16 flex flex-col gap-10 border-t pt-10 sm:flex-row sm:items-start sm:justify-between">
@@ -43,7 +44,7 @@ export function MarketingFooter() {
           <span className="label-mono text-[11px] text-white/40">
             © {new Date().getFullYear()} PAYREVIVE — RAZORPAY AI BUILDATHON, TRACK 03: AI REVENUE RECOVERY
           </span>
-          <Link to="/demo" className="text-xs font-medium text-mint-300 hover:text-mint-200">
+          <Link to="/demo" className="text-xs font-medium text-accent-light hover:text-white">
             Skip sign-up — view the live demo →
           </Link>
         </div>
