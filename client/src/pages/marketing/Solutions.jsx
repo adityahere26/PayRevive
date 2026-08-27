@@ -15,8 +15,8 @@ const SOLUTIONS = [
   {
     n: "01",
     icon: SparkleIcon,
-    title: "AI Recovery Decisions",
-    body: "Every failed payment is scored for recovery probability and matched to a candidate intervention by PayRevive's planner — advisory only, never final.",
+    title: "Recovery Decisions",
+    body: "Every failed payment is scored for recovery probability and matched to a candidate intervention by PayRevive's recovery decision engine — advisory only, never final.",
     points: ["Root-cause classification", "Deterministic recovery scoring", "Advisory intervention selection"],
   },
   {
@@ -112,12 +112,12 @@ export default function Solutions() {
             <h2 className="text-4xl font-bold tracking-tight text-brand-900 sm:text-5xl">Ready to see it work?</h2>
           </RevealOnScroll>
           <RevealOnScroll delay={80} className="flex flex-wrap items-center gap-3">
-            <Link to="/signup" className={buttonClasses({ size: "lg" })}>
-              Get Started
+            <Link to="/demo" className={buttonClasses({ size: "lg" })}>
+              Enter Demo
               <ArrowRightIcon className="h-4 w-4" />
             </Link>
-            <Link to="/demo" className={buttonClasses({ variant: "secondary", size: "lg" })}>
-              View live demo
+            <Link to="/how-it-works" className={buttonClasses({ variant: "secondary", size: "lg" })}>
+              See How It Works
             </Link>
           </RevealOnScroll>
         </div>

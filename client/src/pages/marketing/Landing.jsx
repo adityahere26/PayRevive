@@ -39,7 +39,7 @@ import {
 // figures to show, and must not imply otherwise (CLAUDE.md § honesty requirement extended to
 // the public site).
 
-const MARQUEE_WORDS = ["Recover Revenue", "Detect Risk", "Act Early", "AI Decisions", "Policy Checked", "Hinglish Voice"];
+const MARQUEE_WORDS = ["Recover Revenue", "Detect Risk", "Act Early", "Recovery Decisions", "Policy Checked", "Hinglish Voice"];
 
 const FAILURE_CAUSES = [
   { n: "01", label: "Insufficient funds", note: "Often retryable — the customer usually intends to pay." },
@@ -52,13 +52,13 @@ const FAILURE_CAUSES = [
 const STORY_STEPS = [
   { n: "01", title: "Detect", body: "A failed payment or an abandoned checkout is flagged the moment it happens — not on a nightly batch job." },
   { n: "02", title: "Understand", body: "Root cause, customer history, and a recovery probability are computed deterministically from real payment data." },
-  { n: "03", title: "Decide", body: "PayRevive's AI planner recommends an intervention. It's advisory — the recommendation never executes on its own." },
+  { n: "03", title: "Decide", body: "PayRevive's recovery decision engine recommends an intervention. It's advisory — the recommendation never executes on its own." },
   { n: "04", title: "Recover", body: "A Razorpay Test Mode payment link is sent, a Hinglish voice call is placed, or the case is escalated — whichever the policy engine allows." },
   { n: "05", title: "Confirm", body: "The outcome is verified against what actually happened, and every step is written to a merchant-scoped audit trail." },
 ];
 
 const CARD_STATES = ["failed", "progress", "recovered"];
-const CARD_STATE_LABEL = { failed: "Payment failed", progress: "AI recovery in progress", recovered: "Payment recovered" };
+const CARD_STATE_LABEL = { failed: "Payment failed", progress: "Recovery in progress", recovered: "Payment recovered" };
 
 // The signature fail -> recover moment (brief §8), told through PayRevive's one recurring
 // card object rather than three separate illustrations.
@@ -87,7 +87,7 @@ function RecoveryCycle() {
 function DecisionMock() {
   return (
     <div className="w-full max-w-xs hairline-light rounded-2xl border bg-white p-5 shadow-card-hover">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">AI recommendation</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Recovery recommendation</div>
       <div className="mt-1.5 text-sm font-semibold text-brand-900">Create payment link</div>
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
         <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Policy engine</span>
@@ -190,7 +190,7 @@ const CAPABILITIES = [
     icon: ShieldCheckIcon,
     eyebrow: "The boundary",
     title: "Policy Engine",
-    body: "Attempt limits, high-value review thresholds, recovery windows, and opt-out behavior — all merchant-controlled, all enforced in code, never left to the AI's judgment alone.",
+    body: "Attempt limits, high-value review thresholds, recovery windows, and opt-out behavior — all merchant-controlled, all enforced in code, never left to automated judgment alone.",
     Mock: PolicyMock,
   },
   {
@@ -217,7 +217,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Does PayRevive make decisions automatically?",
-    a: "Gemini recommends an intervention, but nothing executes until deterministic policy code approves it. Money, thresholds, and eligibility are never decided by the AI alone.",
+    a: "PayRevive recommends an intervention, but nothing executes until deterministic policy code approves it. Money, thresholds, and eligibility are never decided by the recommendation alone.",
   },
   {
     q: "When does PayRevive escalate?",
@@ -228,8 +228,8 @@ const FAQ_ITEMS = [
     a: "Yes — payment links are created through the Razorpay Test Mode API, the same safe, idempotent path for every channel that triggers one.",
   },
   {
-    q: "How does the AI voice agent work?",
-    a: "The customer speaks naturally in Hinglish in the browser. Gemini classifies the intent, and the same eligibility/policy engine used everywhere else decides what happens next.",
+    q: "How does Voice Recovery work?",
+    a: "The customer speaks naturally in Hinglish in the browser. PayRevive classifies the intent, and the same eligibility/policy engine used everywhere else decides what happens next.",
   },
   {
     q: "How is customer data protected?",
@@ -288,7 +288,7 @@ export default function Landing() {
           </HeroReveal>
 
           <HeroReveal style={{ top: "45%", left: "38%" }} delay={1.1} className="hidden lg:block">
-            <FloatingBadge text="AI decision" tone="dark" />
+            <FloatingBadge text="Recovery decision" tone="dark" />
           </HeroReveal>
 
           <HeroReveal style={{ top: "8%", right: "6%" }} delay={0.9} className="hidden md:block">
@@ -314,7 +314,7 @@ export default function Landing() {
 
         <div className="relative mx-auto max-w-6xl px-6 pb-28 pt-24 sm:px-8 sm:pb-36 sm:pt-32">
           <RevealOnScroll>
-            <Eyebrow tone="dark">AI Revenue Recovery</Eyebrow>
+            <Eyebrow tone="dark">Revenue Recovery</Eyebrow>
           </RevealOnScroll>
           <RevealOnScroll delay={90}>
             <h1 className="mt-7 max-w-4xl text-7xl font-semibold leading-[0.94] tracking-normal text-white sm:text-8xl lg:text-9xl">
@@ -324,14 +324,14 @@ export default function Landing() {
           </RevealOnScroll>
           <RevealOnScroll delay={180}>
             <p className="mt-8 max-w-lg text-lg leading-relaxed text-white/70">
-              PayRevive detects failed payments, decides what is safe to recover, and takes the
-              right action — automatically.
+              See how PayRevive detects failed payments, evaluates the recovery opportunity,
+              chooses a bounded intervention, and verifies the outcome.
             </p>
           </RevealOnScroll>
           <RevealOnScroll delay={270}>
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <MagneticButton as={Link} to="/signup" className="items-center gap-2 rounded-full border border-white bg-white px-6 py-3.5 text-sm font-semibold text-brand-950 hover:bg-transparent hover:text-white">
-                Get Started
+              <MagneticButton as={Link} to="/demo" className="items-center gap-2 rounded-full border border-white bg-white px-6 py-3.5 text-sm font-semibold text-brand-950 hover:bg-transparent hover:text-white">
+                Enter Demo
                 <ArrowRightIcon className="h-4 w-4" />
               </MagneticButton>
               <Link
@@ -460,11 +460,11 @@ export default function Landing() {
                 <SparkleIcon className="h-5 w-5" />
               </span>
               <Eyebrow className="mt-5">Decision layer</Eyebrow>
-              <h3 className="mt-4 text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">AI Recovery</h3>
+              <h3 className="mt-4 text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">Automated Recovery</h3>
               <p className="mt-4 max-w-md text-base leading-relaxed text-slate-500">
-                Google Gemini reads the case — amount, root cause, customer history — and
-                recommends the safest intervention. It never acts alone: every recommendation is
-                re-checked by deterministic policy code before anything happens.
+                PayRevive reads the case — amount, root cause, customer history — and recommends
+                the safest intervention. It never acts alone: every recommendation is re-checked
+                by deterministic policy code before anything happens.
               </p>
             </RevealOnScroll>
             <RevealOnScroll delay={120} className="relative flex flex-1 justify-center">
@@ -528,7 +528,7 @@ export default function Landing() {
             <div className="mt-10 space-y-0">
               {[
                 { label: "Payment failed", value: "₹8,500", tone: "amber" },
-                { label: "AI identified a recoverable case" },
+                { label: "Recoverable case identified" },
                 { label: "Razorpay Test Mode link sent" },
                 { label: "Customer paid" },
                 { label: "₹8,500 recovered", final: true },
@@ -661,10 +661,10 @@ export default function Landing() {
             </h2>
             <MagneticButton
               as={Link}
-              to="/signup"
+              to="/demo"
               className="mt-10 items-center gap-2 rounded-full border border-white bg-white px-7 py-4 text-sm font-semibold text-brand-950 transition-colors hover:bg-transparent hover:text-white"
             >
-              Get Started
+              Enter Demo
               <ArrowRightIcon className="h-4 w-4" />
             </MagneticButton>
           </RevealOnScroll>

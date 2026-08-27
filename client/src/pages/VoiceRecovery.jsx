@@ -324,9 +324,9 @@ export default function VoiceRecovery() {
               </span>
             }
           >
-            {/* The stage — always visible, shows current AI voice state + waveform */}
+            {/* The stage — always visible, shows current voice state + waveform */}
             <div className="gradient-brand rounded-2xl px-6 py-10 text-center text-white sm:px-10">
-              <div className="label-mono text-[11px] text-white/50">VOICE AGENT</div>
+              <div className="label-mono text-[11px] text-white/50">VOICE RECOVERY</div>
               <div className="mt-2 text-lg font-medium">{STATUS_LABELS[uiState]}</div>
               <div className="mt-6">
                 <VoiceWaveform active={isLive} />
@@ -437,7 +437,7 @@ export default function VoiceRecovery() {
 
         {/* Decision panel */}
         <RevealOnScroll delay={160} className="space-y-4" as="div">
-          <Card title="AI Recommendation">
+          <Card title="Recovery Recommendation">
             {!lastTurn && <p className="text-xs text-brand-400">Nothing yet — start the conversation.</p>}
             {lastTurn && (
               <dl className="space-y-4">
@@ -447,7 +447,7 @@ export default function VoiceRecovery() {
                   value={lastTurn.aiIntent?.confidence != null ? `${Math.round(lastTurn.aiIntent.confidence * 100)}%` : null}
                 />
                 {lastTurn.aiIntent?.fallback && (
-                  <p className="text-xs text-amber-600">AI provider was unavailable — a safe deterministic fallback was used.</p>
+                  <p className="text-xs text-amber-600">The voice service was briefly unavailable — a safe deterministic fallback was used.</p>
                 )}
               </dl>
             )}

@@ -61,13 +61,13 @@ export default function Layout() {
               );
             })}
           </nav>
-          <span className="hidden shrink-0 items-center gap-1.5 text-xs font-medium text-slate-400 lg:flex">
+          <span className="label-mono hidden shrink-0 items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400 lg:flex">
             <span className={`h-1.5 w-1.5 rounded-full ${authenticated ? "bg-brand-950" : "bg-slate-300"}`} />
-            {authenticated ? "Demo session active" : "Not signed in"}
+            {authenticated ? "Demo environment · Synthetic data · Razorpay Test Mode" : "No demo session"}
           </span>
           <span
             className={`h-1.5 w-1.5 shrink-0 rounded-full lg:hidden ${authenticated ? "bg-brand-950" : "bg-slate-300"}`}
-            title={authenticated ? "Demo session active" : "Not signed in"}
+            title={authenticated ? "Demo environment · Synthetic data · Razorpay Test Mode" : "No demo session"}
           />
         </div>
       </header>

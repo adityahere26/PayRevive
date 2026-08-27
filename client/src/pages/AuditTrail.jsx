@@ -33,7 +33,7 @@ const EVENT_LABELS = {
   ROOT_CAUSE_IDENTIFIED: "Root Cause Identified",
   RECOVERY_SCORED: "Recovery Scored",
   ELIGIBILITY_EVALUATED: "Eligibility Checked",
-  AI_RECOMMENDATION_CREATED: "AI Recommendation Created",
+  AI_RECOMMENDATION_CREATED: "Recovery Recommendation Created",
   INTERVENTION_SELECTED: "Intervention Selected",
   POLICY_EVALUATED: "Policy Evaluated",
   PAYMENT_LINK_CREATED: "Payment Link Created",

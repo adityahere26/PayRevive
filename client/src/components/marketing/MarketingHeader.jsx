@@ -10,6 +10,8 @@ const NAV_LINKS = [
   { to: "/contact", label: "Contact" },
 ];
 
+// Demo-first Buildathon nav: no Log in / Sign up / Pricing. The single right-side CTA is
+// "Enter Demo" → /demo (the one real entry point into the product).
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
@@ -46,16 +48,13 @@ export function MarketingHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-6 lg:flex">
-          <Link to="/login" className="label-mono text-[11px] font-medium uppercase tracking-[0.14em] text-brand-800 hover:text-brand-950">
-            Log in
-          </Link>
+        <div className="hidden lg:flex">
           <MagneticButton
             as={Link}
-            to="/signup"
+            to="/demo"
             className="gradient-cta items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
           >
-            Get Started
+            Enter Demo
             <ArrowRightIcon className="h-3.5 w-3.5" />
           </MagneticButton>
         </div>
@@ -86,12 +85,9 @@ export function MarketingHeader() {
               </NavLink>
             ))}
           </nav>
-          <div className="mt-8 flex flex-col gap-3 border-t border-brand-900/10 pt-6">
-            <Link to="/login" className="rounded-full border border-brand-200 px-4 py-3 text-center text-sm font-medium text-brand-800">
-              Log in
-            </Link>
-            <Link to="/signup" className="gradient-cta rounded-full px-4 py-3 text-center text-sm font-semibold text-white">
-              Get Started
+          <div className="mt-8 border-t border-brand-900/10 pt-6">
+            <Link to="/demo" className="gradient-cta block rounded-full px-4 py-3 text-center text-sm font-semibold text-white">
+              Enter Demo
             </Link>
           </div>
         </div>

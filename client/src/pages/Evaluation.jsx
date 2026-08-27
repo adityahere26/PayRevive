@@ -103,8 +103,8 @@ export default function Evaluation() {
         description={
           <>
             Runs PayRevive's real recovery pipeline — root cause, scoring, policy, and execution — against a
-            seeded batch of synthetic cases. Never a real Razorpay Test Mode payment, never a real Gemini call,
-            and never presented as actual merchant revenue.
+            seeded batch of synthetic cases. It runs entirely in-memory: no real Razorpay Test Mode payments,
+            no external service calls, and never presented as actual merchant revenue.
           </>
         }
       />

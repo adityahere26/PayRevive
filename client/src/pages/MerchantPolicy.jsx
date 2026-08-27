@@ -144,7 +144,7 @@ export default function MerchantPolicy() {
       <PageHeader
         eyebrow={<span className="label-mono text-xs font-medium text-slate-400">MERCHANT POLICY</span>}
         title="Set the boundaries of autonomy."
-        description="The deterministic rules the Policy Engine enforces on every recovery case — never overridden by the AI planner (AGENT_DESIGN.md § core principle)."
+        description="The deterministic rules the Policy Engine enforces on every recovery case — never overridden by the recovery decision engine."
         actions={
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save Changes"}

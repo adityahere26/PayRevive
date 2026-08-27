@@ -15,20 +15,17 @@ import About from "./pages/marketing/About.jsx";
 import HowItWorks from "./pages/marketing/HowItWorks.jsx";
 import Solutions from "./pages/marketing/Solutions.jsx";
 import Contact from "./pages/marketing/Contact.jsx";
-import Login from "./pages/auth/Login.jsx";
-import Signup from "./pages/auth/Signup.jsx";
-import ForgotPassword from "./pages/auth/ForgotPassword.jsx";
-import ResetPassword from "./pages/auth/ResetPassword.jsx";
-import Onboarding from "./pages/auth/Onboarding.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
-// Route map (this session's redesign):
-//  - "/" now the public marketing landing page (was DemoEntry — moved to "/demo", still the
-//    same working component, still the one real entry point for evaluators per CLAUDE.md).
-//  - Public marketing + auth-shell routes carry PayRevive's design language but no working
-//    backend beyond the demo token (see Login.jsx/Signup.jsx's own notes on why).
-//  - The authenticated product routes (/dashboard onward) are unchanged — same Layout, same
-//    components, same APIs.
+// Route map (demo-first Buildathon build):
+//  - "/" is the public marketing landing page. Its primary CTA is "Enter Demo" → "/demo".
+//  - There is NO public sign-in / sign-up / password-reset / onboarding UI. Those screens were
+//    removed: this build has no real merchant registration backend, only the pre-seeded demo
+//    merchant (server/src/routes/auth.js issues demo tokens — SECURITY.md § Demo authentication).
+//  - "/demo" (DemoEntry) is the single entry point into the product. It calls api.authDemo(),
+//    stores the demo JWT, and lands on "/dashboard". Merchant scoping/isolation is unchanged —
+//    every product route below still runs under that demo session's token.
+//  - The product routes (/dashboard onward) are unchanged — same Layout, components, APIs.
 export default function App() {
   return (
     <BrowserRouter>
@@ -41,11 +38,6 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
         </Route>
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/demo" element={<DemoEntry />} />
 
         <Route element={<Layout />}>

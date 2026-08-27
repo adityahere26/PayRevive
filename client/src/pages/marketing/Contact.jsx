@@ -21,12 +21,12 @@ const FAQS = [
     a: "PayRevive calls Razorpay's Payment Links API through one shared, idempotent code path — the same one every channel (voice, web, escalation) uses, so a link is never created or sent twice for the same case.",
   },
   {
-    q: "How does the AI decide what to do?",
-    a: "Google Gemini classifies voice intent and recommends an intervention, but that recommendation is advisory. A deterministic policy engine — not the model — checks attempt limits, thresholds, and eligibility before anything executes.",
+    q: "How does PayRevive decide what to do?",
+    a: "PayRevive classifies voice intent and recommends an intervention, but that recommendation is advisory. A deterministic policy engine — not the recommendation — checks attempt limits, thresholds, and eligibility before anything executes.",
   },
   {
     q: "How does PayRevive know when to stop?",
-    a: "Merchant policy sets maximum recovery attempts, a recovery window, and opt-out rules. Once a case hits any of those limits, or the customer opts out, outreach stops — enforced by policy, not by the model's judgment.",
+    a: "Merchant policy sets maximum recovery attempts, a recovery window, and opt-out rules. Once a case hits any of those limits, or the customer opts out, outreach stops — enforced by policy, not by an advisory recommendation.",
   },
   {
     q: "Is the demo data real?",

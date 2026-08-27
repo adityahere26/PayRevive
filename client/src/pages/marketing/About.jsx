@@ -8,13 +8,13 @@ import { ArrowRightIcon, ShieldCheckIcon, SparkleIcon, FileTextIcon } from "../.
 const PRINCIPLES = [
   {
     icon: ShieldCheckIcon,
-    title: "Policy decides, not the model",
-    body: "Money, thresholds, retry counts, and eligibility are controlled by deterministic code. An AI-recommended action is advisory until the policy engine approves it — never the other way around.",
+    title: "Policy decides, not automation",
+    body: "Money, thresholds, retry counts, and eligibility are controlled by deterministic code. A recommended action is advisory until the policy engine approves it — never the other way around.",
   },
   {
     icon: SparkleIcon,
-    title: "AI where it's actually useful",
-    body: "Google Gemini classifies voice intent and recommends interventions — narrow, well-scoped jobs. It isn't wired into an agentic loop making open-ended decisions about your revenue.",
+    title: "Automation kept narrow and bounded",
+    body: "PayRevive classifies voice intent and recommends interventions — narrow, well-scoped jobs. It isn't wired into an open-ended loop making decisions about your revenue on its own.",
   },
   {
     icon: FileTextIcon,
@@ -40,9 +40,9 @@ export default function About() {
               <span className="block text-accent">built to be trusted.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-brand-600">
-              PayRevive is an AI revenue recovery agent built for the Razorpay AI Buildathon —
-              Track 03. It detects revenue at risk, diagnoses why a payment failed, and takes a
-              bounded, policy-checked action to recover it.
+              PayRevive is an automated revenue recovery system built for the Razorpay AI
+              Buildathon — Track 03. It detects revenue at risk, diagnoses why a payment failed,
+              and takes a bounded, policy-checked action to recover it.
             </p>
           </RevealOnScroll>
         </div>
@@ -101,7 +101,7 @@ export default function About() {
           </RevealOnScroll>
           <RevealOnScroll delay={80}>
             <Link to="/demo" className={buttonClasses({ size: "lg" })}>
-              View the live demo
+              Enter Demo
               <ArrowRightIcon className="h-4 w-4" />
             </Link>
           </RevealOnScroll>

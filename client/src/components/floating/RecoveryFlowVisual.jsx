@@ -7,7 +7,7 @@ const STAGES = [
   { label: "Failed payment", detail: "Detected the moment it happens" },
   { label: "Root cause", detail: "Deterministic diagnosis" },
   { label: "Policy decision", detail: "Checked against merchant rules" },
-  { label: "AI intervention", detail: "Gemini recommends, policy approves" },
+  { label: "Intervention", detail: "PayRevive recommends, policy approves" },
   { label: "Outcome", detail: "Verified, not assumed" },
 ];
 

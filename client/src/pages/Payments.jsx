@@ -323,10 +323,10 @@ function SelectionSummary({ rows }) {
 function CallAgentFlow({ rows, step, onCancel, onStart, liveStatuses }) {
   if (step === "confirm") {
     return (
-      <Card tone="mint" title="Start AI voice recovery" subtitle="Review the selection, then confirm to begin.">
+      <Card tone="mint" title="Start voice recovery" subtitle="Review the selection, then confirm to begin.">
         <SelectionSummary rows={rows} />
         <div className="mt-4">
-          <Alert tone="info">PayRevive will attempt AI voice recovery for the selected customers.</Alert>
+          <Alert tone="info">PayRevive will attempt voice recovery for the selected customers.</Alert>
         </div>
         <div className="mt-5 flex items-center gap-3">
           <Button onClick={onStart} className="uppercase tracking-wide">Confirm Calls</Button>
@@ -337,7 +337,7 @@ function CallAgentFlow({ rows, step, onCancel, onStart, liveStatuses }) {
   }
 
   return (
-    <Card tone="mint" title="AI call queue" subtitle="One live session at a time — this is the same voice pipeline used elsewhere in the product.">
+    <Card tone="mint" title="Voice call queue" subtitle="One live session at a time — this is the same voice pipeline used elsewhere in the product.">
       <Alert tone="warning" title="Backend limitation">
         PayRevive doesn't yet have an automated outbound-calling backend. Each call below opens
         the real Voice Recovery session for that customer in a new tab — start them one at a
@@ -596,8 +596,8 @@ export default function Payments() {
             <Eyebrow>Recovery queue</Eyebrow>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">Failed Payments</h2>
             <p className="mt-1.5 max-w-xl text-sm text-slate-500">
-              These customers may require recovery — select one or more to start an AI voice
-              call or send a Razorpay Test Mode payment link.
+              These customers may require recovery — select one or more to start a voice
+              recovery call or send a Razorpay Test Mode payment link.
             </p>
           </div>
           {overview && failedPayments.length > 0 && (

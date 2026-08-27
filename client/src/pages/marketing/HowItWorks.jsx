@@ -20,7 +20,7 @@ const STEPS = [
   {
     n: "03",
     title: "Decide",
-    body: "An intervention is selected: a payment link, a Hinglish voice call, a promise-to-pay, escalation to the merchant, or stopping outreach entirely. For voice, Gemini classifies what the customer actually said; for everything else, the score drives the choice.",
+    body: "An intervention is selected: a payment link, a Hinglish voice call, a promise-to-pay, escalation to the merchant, or stopping outreach entirely. For voice, PayRevive classifies what the customer actually said; for everything else, the score drives the choice.",
   },
   {
     n: "04",
@@ -124,10 +124,13 @@ export default function HowItWorks() {
           <RevealOnScroll>
             <h2 className="text-4xl font-bold tracking-tight text-brand-900 sm:text-5xl">Explore the capabilities</h2>
           </RevealOnScroll>
-          <RevealOnScroll delay={80}>
-            <Link to="/solutions" className={buttonClasses({ size: "lg" })}>
-              See solutions
+          <RevealOnScroll delay={80} className="flex flex-wrap items-center gap-3">
+            <Link to="/demo" className={buttonClasses({ size: "lg" })}>
+              Enter Demo
               <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+            <Link to="/solutions" className={buttonClasses({ variant: "secondary", size: "lg" })}>
+              See solutions
             </Link>
           </RevealOnScroll>
         </div>

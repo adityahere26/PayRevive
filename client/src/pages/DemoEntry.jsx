@@ -5,8 +5,9 @@ import { Button } from "../components/ui/Button.jsx";
 import { FloatingCurrency } from "../components/floating/FloatingCurrency.jsx";
 import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
 
-// SPEC.md § Demo mode: evaluators should never need to register. This is the only working
-// auth flow in the Day 2 foundation — real merchant login isn't built yet.
+// SPEC.md § Demo mode: evaluators never register. This is the single entry point into the
+// product — there is no public sign-in / sign-up UI. It exchanges nothing for a pre-seeded
+// demo-merchant JWT (api.authDemo) so every downstream route stays merchant-scoped.
 export default function DemoEntry() {
   const navigate = useNavigate();
   const [status, setStatus] = useState("idle"); // idle | loading | error
@@ -38,14 +39,14 @@ export default function DemoEntry() {
 
       <RevealOnScroll className="relative w-full max-w-md text-center">
         <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-950 text-sm font-bold text-white">P</span>
-        <p className="label-mono mt-5 text-[11px] text-accent">PayRevive · Live Demo</p>
+        <p className="label-mono mt-5 text-[11px] text-accent">PayRevive · Demo</p>
         <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-tight text-brand-950 sm:text-5xl">
-          Recover revenue
+          Enter the
           <br />
-          before it&rsquo;s lost.
+          PayRevive demo.
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-brand-500">
-          Detect revenue at risk. Recover what can be recovered. Stop when it should.
+          Experience the recovery workflow end to end — no account required.
         </p>
 
         <Button onClick={handleEnterDemo} disabled={status === "loading"} className="mt-9 w-full" size="lg">
@@ -54,8 +55,8 @@ export default function DemoEntry() {
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
 
-        <p className="label-mono mt-6 text-[10px] text-brand-300">
-          Pre-seeded demo merchant · Razorpay Test Mode · Synthetic data only
+        <p className="label-mono mt-6 text-[10px] uppercase tracking-[0.14em] text-brand-300">
+          Demo environment · Synthetic data · Razorpay Test Mode
         </p>
       </RevealOnScroll>
     </div>

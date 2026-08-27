@@ -44,7 +44,7 @@ export function MarketingFooter() {
             © {new Date().getFullYear()} PAYREVIVE — RAZORPAY AI BUILDATHON, TRACK 03: AI REVENUE RECOVERY
           </span>
           <Link to="/demo" className="text-xs font-medium text-accent-light hover:text-white">
-            Skip sign-up — view the live demo →
+            Enter Demo →
           </Link>
         </div>
       </div>
