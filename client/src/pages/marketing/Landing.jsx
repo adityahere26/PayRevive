@@ -403,8 +403,8 @@ export default function Landing() {
       {/* ===== HOW IT WORKS — soft blue-green gradient ===== */}
       <section className="gradient-soft-teal overflow-hidden py-24 sm:py-32">
         <div className="mx-auto max-w-5xl px-6 sm:px-8">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
-            <div className="relative h-full">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[40%_53%] lg:gap-16">
+            <div className="relative flex h-full flex-col">
               <RevealOnScroll>
                 <Eyebrow>The loop</Eyebrow>
                 <h2 className="mt-5 max-w-xs text-4xl font-bold leading-[1.05] tracking-tight text-brand-900 sm:text-5xl">
@@ -419,12 +419,17 @@ export default function Landing() {
                 </Link>
               </RevealOnScroll>
 
-              {/* Empty lower-left negative space (this column is grid-stretched to match the
-                  taller steps list on the right) — a subtle animated money-transfer scene,
-                  desktop-only since the two-column split (and the empty area it creates) only
-                  exists at the lg breakpoint; below lg the layout stacks and this column's
-                  height matches its own content exactly. */}
-              <MoneyTransferAnimation className="absolute inset-x-0 bottom-0 hidden h-56 lg:block" />
+              {/* Sits in normal flow directly below the heading/CTA (not absolutely
+                  positioned) so it can never overlap them, and so the browser naturally makes
+                  room for it at every breakpoint instead of relying on this column's grid-row
+                  stretch (which only exists once the 2-column split kicks in at lg). The parent
+                  grid gives this left column a fixed 40% of the section at lg, the steps column
+                  53%, leaving a full 4rem/64px gutter between them. Width is exactly `w-full`
+                  with no scale-up, so the scene never spills past its 40% column into that
+                  gutter or the numbered steps — it reads as a self-contained visual block
+                  centred in the left half. At lg `my-auto` floats it to the vertical middle of
+                  the otherwise-empty left column, with generous top spacing under the heading. */}
+              <MoneyTransferAnimation className="mt-10 h-72 w-full sm:mt-12 sm:h-80 md:h-96 lg:my-auto lg:mt-14 lg:h-[34rem]" />
             </div>
 
             <StaggerChildren className="space-y-10" step={100}>
