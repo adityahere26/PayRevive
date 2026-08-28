@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client.js";
-import { formatINR } from "../lib/format.js";
+import { formatINR, humanize } from "../lib/format.js";
+import { statusLabel } from "../lib/statusMeta.js";
+import { deriveVoiceRecoveryView } from "../lib/voiceRecoveryView.js";
 import { Card } from "../components/ui/Card.jsx";
 import { Badge, StatusBadge } from "../components/ui/Badge.jsx";
 import { Button, buttonClasses } from "../components/ui/Button.jsx";
@@ -106,6 +108,8 @@ export default function VoiceRecovery() {
   const { caseId } = useParams();
 
   const [recoveryCase, setRecoveryCase] = useState(null);
+  const [policy, setPolicy] = useState(null);
+  const [plan, setPlan] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
   const [sessionId, setSessionId] = useState(null);
@@ -121,10 +125,26 @@ export default function VoiceRecovery() {
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    api
-      .getRecoveryCase(caseId)
-      .then((res) => setRecoveryCase(res.recoveryCase))
-      .catch((err) => setLoadError(err.message));
+    let cancelled = false;
+    // Case is required; policy (voice limit / voiceEnabled) and the current recovery plan are
+    // best-effort — the view derivation degrades gracefully if either is unavailable.
+    Promise.all([
+      api.getRecoveryCase(caseId),
+      api.getMerchantPolicy().catch(() => null),
+      api.getCurrentRecoveryPlan().catch(() => null),
+    ])
+      .then(([caseRes, policyRes, planRes]) => {
+        if (cancelled) return;
+        setRecoveryCase(caseRes.recoveryCase);
+        setPolicy(policyRes?.policy || null);
+        setPlan(planRes?.plan || null);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [caseId]);
 
   useEffect(() => {
@@ -279,6 +299,24 @@ export default function VoiceRecovery() {
     );
   }
 
+  // Single source of truth for the IDLE stage + decision panels — see lib/voiceRecoveryView.js.
+  const voiceView = deriveVoiceRecoveryView({ recoveryCase, policy, plan });
+
+  // "Action" panel fallback (when no voice turn has produced an action yet) — reflects the
+  // recovery plan's real state instead of always saying "No action executed yet".
+  let actionFallbackText = "No action executed yet.";
+  if (!lastTurn?.action) {
+    if (TERMINAL_STATUSES.includes(recoveryCase.status)) {
+      actionFallbackText = `${statusLabel(recoveryCase.status)}.`;
+    } else if (recoveryCase.status === "WAITING_OUTCOME") {
+      actionFallbackText = "Payment link sent — awaiting payment.";
+    } else if (voiceView.mode === "started") {
+      actionFallbackText = "Voice intervention initiated after plan confirmation.";
+    } else if (recoveryCase.selectedIntervention) {
+      actionFallbackText = "Awaiting merchant confirmation.";
+    }
+  }
+
   return (
     <div className="space-y-6">
       <RevealOnScroll>
@@ -306,8 +344,15 @@ export default function VoiceRecovery() {
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field label="Amount at Risk" value={formatINR(recoveryCase.amount)} />
             <Field label="Recovery Status" value={<StatusBadge status={recoveryCase.status} />} />
-            <Field label="Root Cause" value={recoveryCase.rootCause} />
-            <Field label="Voice Attempts" value={`${recoveryCase.voiceAttempts ?? 0}`} />
+            <Field label="Root Cause" value={humanize(recoveryCase.rootCause)} />
+            <Field
+              label="Voice Attempts"
+              value={
+                voiceView.attemptsLimit != null
+                  ? `${voiceView.attemptsUsed} / ${voiceView.attemptsLimit}`
+                  : `${voiceView.attemptsUsed}`
+              }
+            />
           </dl>
         </Card>
       </RevealOnScroll>
@@ -327,28 +372,49 @@ export default function VoiceRecovery() {
             {/* The stage — always visible, shows current voice state + waveform */}
             <div className="gradient-brand rounded-2xl px-6 py-10 text-center text-white sm:px-10">
               <div className="label-mono text-[11px] text-white/50">VOICE RECOVERY</div>
-              <div className="mt-2 text-lg font-medium">{STATUS_LABELS[uiState]}</div>
+              <div className="mt-2 text-lg font-medium">
+                {uiState === "IDLE" ? voiceView.headline : STATUS_LABELS[uiState]}
+              </div>
               <div className="mt-6">
                 <VoiceWaveform active={isLive} />
               </div>
 
               {uiState === "IDLE" && (
-                <div className="mt-7">
-                  <Button onClick={handleStart} disabled={starting || isTerminal} variant="inverse" size="lg">
-                    {starting ? "Starting…" : "Start Voice Recovery"}
-                  </Button>
-                  {sessionError && <p className="mt-3 text-xs text-red-300">{sessionError}</p>}
-                  {isTerminal && (
-                    <p className="mt-3 text-xs text-white/50">
-                      This case has already reached a final state ({recoveryCase.status}) — no voice session available.
-                    </p>
+                <div className="mt-7 space-y-3">
+                  <p className="mx-auto max-w-sm text-sm text-white/70">{voiceView.message}</p>
+
+                  {/* A start action is offered in exactly one state: a not-yet-planned case
+                      where the backend's POST /voice/session is genuinely accepted. Every other
+                      state either navigates to the recovery plan or offers nothing. */}
+                  {voiceView.showStartButton && (
+                    <div>
+                      <Button onClick={handleStart} disabled={starting} variant="inverse" size="lg">
+                        {starting ? "Starting…" : "Start Voice Recovery"}
+                      </Button>
+                      {sessionError && <p className="mt-3 text-xs text-red-300">{sessionError}</p>}
+                      {!micSupported && (
+                        <p className="mt-3 text-xs text-white/50">
+                          Voice input isn't supported in this browser (Chrome is recommended). You'll still be able to
+                          type your response once the session starts — it runs through the exact same pipeline.
+                        </p>
+                      )}
+                    </div>
                   )}
-                  {!micSupported && (
-                    <p className="mt-3 text-xs text-white/50">
-                      Voice input isn't supported in this browser (Chrome is recommended). You'll still be able to
-                      type your response once the session starts — it runs through the exact same pipeline.
-                    </p>
+
+                  {voiceView.ctaLabel && voiceView.ctaTo && (
+                    <div>
+                      <Link to={voiceView.ctaTo} className={buttonClasses({ variant: "inverse", size: "lg" })}>
+                        {voiceView.ctaLabel}
+                      </Link>
+                    </div>
                   )}
+
+                  {(voiceView.mode === "limit_reached" || voiceView.mode === "started") &&
+                    voiceView.attemptsLimit != null && (
+                      <p className="text-xs text-white/60">
+                        {voiceView.attemptsUsed} / {voiceView.attemptsLimit} voice attempts used
+                      </p>
+                    )}
                 </div>
               )}
             </div>
@@ -438,7 +504,23 @@ export default function VoiceRecovery() {
         {/* Decision panel */}
         <RevealOnScroll delay={160} className="space-y-4" as="div">
           <Card title="Recovery Recommendation">
-            {!lastTurn && <p className="text-xs text-brand-400">Nothing yet — start the conversation.</p>}
+            {!lastTurn && !recoveryCase.selectedIntervention && recoveryCase.recoveryProbability == null && (
+              <p className="text-xs text-brand-400">PayRevive hasn't analysed this case into a recommendation yet.</p>
+            )}
+            {!lastTurn && (recoveryCase.selectedIntervention || recoveryCase.recoveryProbability != null) && (
+              <dl className="space-y-4">
+                <Field label="Recommended Intervention" value={humanize(recoveryCase.selectedIntervention)} />
+                <Field
+                  label="Recovery Probability"
+                  value={
+                    recoveryCase.recoveryProbability != null
+                      ? `${Math.round(recoveryCase.recoveryProbability * 100)}%`
+                      : null
+                  }
+                />
+                {recoveryCase.rootCause && <Field label="Root Cause" value={humanize(recoveryCase.rootCause)} />}
+              </dl>
+            )}
             {lastTurn && (
               <dl className="space-y-4">
                 <Field label="Detected Intent" value={lastTurn.aiIntent?.intent} />
@@ -454,7 +536,16 @@ export default function VoiceRecovery() {
           </Card>
 
           <Card title="Policy Decision">
-            {!lastTurn && <p className="text-xs text-brand-400">Not evaluated yet.</p>}
+            {!lastTurn && !recoveryCase.policyDecision && (
+              <p className="text-xs text-brand-400">Not evaluated yet.</p>
+            )}
+            {!lastTurn && recoveryCase.policyDecision && (
+              <dl className="space-y-4">
+                <Field label="Decision" value={humanize(recoveryCase.policyDecision)} />
+                <Field label="Reason Code" value={recoveryCase.policyDecision} />
+                <Field label="Case Status" value={statusLabel(recoveryCase.status)} />
+              </dl>
+            )}
             {lastTurn && (
               <dl className="space-y-4">
                 <Field label="Candidate Action" value={lastTurn.candidateAction} />
@@ -465,7 +556,21 @@ export default function VoiceRecovery() {
           </Card>
 
           <Card title="Action">
-            {!lastTurn?.action && <p className="text-xs text-brand-400">No action executed yet.</p>}
+            {!lastTurn?.action && (
+              <div className="space-y-2">
+                <p className="text-xs text-brand-400">{actionFallbackText}</p>
+                {recoveryCase.razorpayPaymentLinkShortUrl && (
+                  <a
+                    href={recoveryCase.razorpayPaymentLinkShortUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block break-all font-mono text-xs text-brand-700 underline hover:text-brand-900"
+                  >
+                    {recoveryCase.razorpayPaymentLinkShortUrl}
+                  </a>
+                )}
+              </div>
+            )}
             {lastTurn?.action && (
               <dl className="space-y-4">
                 <Field label="Action" value={lastTurn.action.action} />
