@@ -6,7 +6,8 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { requireAuth } from "../middleware/auth.js";
-import { RecoveryCase, Customer, Payment, AuditLog } from "../models/index.js";
+import { RecoveryCase, Customer, Payment, AuditLog, RecoveryPlan } from "../models/index.js";
+import { serializePlan } from "../pipeline/recoveryPlan.js";
 import { env } from "../config/env.js";
 
 export const dashboardRouter = Router();
@@ -17,7 +18,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
   try {
     const merchantId = new mongoose.Types.ObjectId(req.merchant.id);
 
-    const [riskAgg, recoveredAgg, statusCounts, revenueByStatusAgg, interventionAgg, recentCases, autoExecutedCount, autoVoiceQueuedCount] = await Promise.all([
+    const [riskAgg, recoveredAgg, statusCounts, revenueByStatusAgg, interventionAgg, recentCases, executedInterventionsCount, planStatusCounts, pendingPlans] = await Promise.all([
       RecoveryCase.aggregate([
         { $match: { merchantId } },
         { $group: { _id: null, totalAmount: { $sum: "$amount" }, count: { $sum: 1 } } },
@@ -53,14 +54,22 @@ dashboardRouter.get("/summary", async (req, res, next) => {
         },
       ]),
       RecoveryCase.find({ merchantId }).sort({ createdAt: -1 }).limit(10),
-      // Automated interventions the agent actually carried out — an AUTO_RECOVERY_EXECUTED
-      // audit event is written by pipeline/autoRecovery.js only after an action ran (live link,
-      // simulated, or STOP). AUTO_RECOVERY_VOICE_QUEUED counts cases the agent approved for a
-      // live voice session. Real merchant audit data only — the batch evaluator never writes
-      // AuditLog rows.
-      AuditLog.countDocuments({ merchantId, eventType: "AUTO_RECOVERY_EXECUTED" }),
-      AuditLog.countDocuments({ merchantId, eventType: "AUTO_RECOVERY_VOICE_QUEUED" }),
+      // Interventions that have ACTUALLY executed after a merchant confirmed a plan — a
+      // RECOVERY_EXECUTED audit event is written by pipeline/recoveryPlan.js only once a
+      // customer-facing action ran. A plan being prepared is deliberately NOT counted here.
+      AuditLog.countDocuments({ merchantId, eventType: "RECOVERY_EXECUTED" }),
+      RecoveryPlan.aggregate([
+        { $match: { merchantId } },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
+      RecoveryPlan.find({ merchantId, status: "PENDING_APPROVAL" }),
     ]);
+
+    const planStatusBreakdown = Object.fromEntries(planStatusCounts.map((s) => [s._id, s.count]));
+    const itemsAwaitingApproval = pendingPlans.reduce(
+      (sum, plan) => sum + plan.items.filter((i) => i.customerFacing && i.status === "PENDING").length,
+      0
+    );
 
     const statusBreakdown = Object.fromEntries(statusCounts.map((s) => [s._id, s.count]));
     const revenueByStatus = Object.fromEntries(revenueByStatusAgg.map((s) => [s._id, s.revenue]));
@@ -86,8 +95,17 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       revenueByStatus,
       interventionBreakdown,
       recentCases,
-      autoRecoveryActive: env.AUTO_RECOVERY_ENABLED,
-      automatedInterventions: autoExecutedCount + autoVoiceQueuedCount,
+      // Accurate terminology (spec): the system decides automatically, customer contact is
+      // approval-gated. "Ready" = plans a merchant can confirm; "executed" = actions that ran
+      // after confirmation.
+      recoveryAutomation: {
+        autoplanEnabled: env.RECOVERY_AUTOPLAN_ENABLED,
+        plansAwaitingApproval: planStatusBreakdown.PENDING_APPROVAL || 0,
+        plansExecuting: planStatusBreakdown.EXECUTING || 0,
+        plansCompleted: (planStatusBreakdown.COMPLETED || 0) + (planStatusBreakdown.PARTIAL || 0),
+        customersAwaitingApproval: itemsAwaitingApproval,
+        executedInterventions: executedInterventionsCount,
+      },
     });
   } catch (err) {
     next(err);
@@ -106,7 +124,7 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
 
-    const [totalClients, paymentsPassed, paymentsFailed, totalFailedPayments, failedPaymentDocs] =
+    const [totalClients, paymentsPassed, paymentsFailed, totalFailedPayments, failedPaymentDocs, activePlan] =
       await Promise.all([
         Customer.countDocuments({ merchantId }),
         Payment.countDocuments({ merchantId, status: "paid" }),
@@ -116,6 +134,7 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit),
+        RecoveryPlan.findOne({ merchantId, status: "PENDING_APPROVAL" }),
       ]);
 
     const customerIds = failedPaymentDocs.map((p) => p.customerId);
@@ -182,7 +201,10 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
       failedPayments,
       totalFailedPayments,
       recoverySummary,
-      autoRecoveryActive: env.AUTO_RECOVERY_ENABLED,
+      // The one prepared recovery plan awaiting the merchant's single confirmation (or null).
+      // Customer-facing actions have NOT run yet — see ARCHITECTURE.md § Recovery plans.
+      recoveryPlan: serializePlan(activePlan),
+      autoplanEnabled: env.RECOVERY_AUTOPLAN_ENABLED,
       page,
       limit,
     });

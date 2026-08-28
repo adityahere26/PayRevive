@@ -9,6 +9,11 @@ export {
   INTERVENTIONS,
 } from "./RecoveryCase.js";
 export { RecoveryAction } from "./RecoveryAction.js";
+export {
+  RecoveryPlan,
+  RECOVERY_PLAN_STATUSES,
+  RECOVERY_PLAN_ITEM_STATUSES,
+} from "./RecoveryPlan.js";
 export { RecoveryAttempt } from "./RecoveryAttempt.js";
 export { PromiseToPay } from "./PromiseToPay.js";
 export { WebhookEvent } from "./WebhookEvent.js";

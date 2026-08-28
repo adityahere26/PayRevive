@@ -46,11 +46,11 @@ export async function startTestServer({ mongoUri, envOverrides = {} } = {}) {
     process.env.RAZORPAY_KEY_ID = "";
     process.env.RAZORPAY_KEY_SECRET = "";
     process.env.RAZORPAY_WEBHOOK_SECRET = "";
-    // Agentic auto-recovery (server/src/pipeline/autoRecovery.js) is ON by default in a real
-    // deployment, but the bulk of the suite exercises the DETECT -> EVALUATE -> EXECUTE stages
-    // one step at a time and asserts the intermediate states. Forcing it off here keeps those
-    // tests deterministic; tests/autoRecovery.test.js opts back in via envOverrides.
-    process.env.AUTO_RECOVERY_ENABLED = "false";
+    // Auto-planning (server/src/pipeline/recoveryPlan.js) is ON by default in a real
+    // deployment, but the bulk of the suite exercises the DETECT -> EVALUATE stages one step at
+    // a time and asserts the intermediate case states. Forcing it off here keeps those tests
+    // deterministic; tests/recoveryPlan.test.js opts back in via envOverrides.
+    process.env.RECOVERY_AUTOPLAN_ENABLED = "false";
     Object.assign(process.env, envOverrides);
 
     const dbModule = await import("../../server/src/config/db.js");

@@ -14,6 +14,7 @@ import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
 import { demoRouter } from "./routes/demo.js";
 import { recoveryCasesRouter } from "./routes/recoveryCases.js";
+import { recoveryPlanRouter } from "./routes/recoveryPlan.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { evaluationRouter } from "./routes/evaluation.js";
 import { auditLogRouter } from "./routes/auditLog.js";
@@ -47,6 +48,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/demo", demoRouter);
   app.use("/api/recovery-cases", recoveryCasesRouter);
+  app.use("/api/recovery-plan", recoveryPlanRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/evaluation", evaluationRouter);
   app.use("/api/audit-log", auditLogRouter);

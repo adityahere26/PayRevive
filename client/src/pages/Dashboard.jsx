@@ -149,12 +149,12 @@ function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onTogg
               <div className="mt-1 text-xs text-mint-100/70">recovered ÷ total</div>
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Automated Interventions</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Awaiting Approval</div>
               <div className="mt-1.5 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                {summary.automatedInterventions || 0}
+                {summary.recoveryAutomation?.customersAwaitingApproval || 0}
               </div>
               <div className="mt-1 text-xs text-mint-100/70">
-                {summary.autoRecoveryActive ? "auto recovery active" : "auto recovery off"}
+                {summary.recoveryAutomation?.executedInterventions || 0} executed after approval
               </div>
             </div>
             <div>
@@ -336,6 +336,31 @@ export default function Dashboard() {
 
       {summary && (
         <>
+          {(() => {
+            const ra = summary.recoveryAutomation || {};
+            const cells = [
+              { label: "Recovery Plans Ready", value: ra.plansAwaitingApproval || 0 },
+              { label: "Customers Awaiting Approval", value: ra.customersAwaitingApproval || 0 },
+              { label: "Executing", value: ra.plansExecuting || 0 },
+              { label: "Recovered", value: summary.recoveredCases || 0 },
+            ];
+            return (
+              <Card
+                title="Recovery Plans"
+                subtitle="PayRevive decides automatically; customer contact runs only after one merchant confirmation."
+              >
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {cells.map((c) => (
+                    <div key={c.label}>
+                      <div className="text-2xl font-bold tracking-tight text-brand-900">{c.value}</div>
+                      <div className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-400">{c.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
+
           {summary.totalCases > 0 && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
               <Card title="Recovery Performance" subtitle="Every case, by current outcome — a snapshot, not a trend (no historical data to draw one from honestly).">

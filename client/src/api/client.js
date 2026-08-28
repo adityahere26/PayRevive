@@ -89,6 +89,12 @@ export const api = {
   // Never sends any Razorpay credential — the browser never has one to send.
   createPaymentLink: (id) => request(`/recovery-cases/${id}/payment-link`, { method: "POST" }),
 
+  // Approval-gated autonomy (ARCHITECTURE.md § Recovery plans). The merchant reads the one
+  // prepared plan and confirms it once; confirmation is idempotent server-side.
+  getCurrentRecoveryPlan: () => request("/recovery-plan/current"),
+  getRecoveryPlan: (id) => request(`/recovery-plan/${id}`),
+  confirmRecoveryPlan: (id) => request(`/recovery-plan/${id}/confirm`, { method: "POST" }),
+
   // EVALUATION.md § Batch evaluation engine — synthetic data only, never a real Razorpay/
   // Gemini call. See server/src/routes/evaluation.js.
   runEvaluation: (count) => request("/evaluation/run", { method: "POST", body: count ? { count } : {} }),

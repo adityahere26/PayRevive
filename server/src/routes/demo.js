@@ -11,7 +11,7 @@ import { validateBody } from "../lib/validate.js";
 import { NotFoundError } from "../lib/errors.js";
 import { Merchant, Customer, Payment } from "../models/index.js";
 import { detectPaymentFailureRisk } from "../pipeline/riskDetector.js";
-import { runAutomaticRecovery } from "../pipeline/autoRecovery.js";
+import { planRecoveryForCase, serializePlan } from "../pipeline/recoveryPlan.js";
 import { writeAuditLog } from "../audit/auditLogger.js";
 import { env } from "../config/env.js";
 
@@ -110,20 +110,20 @@ demoRouter.post(
         result: recoveryCase.status,
       });
 
-      // Agentic auto-recovery (ARCHITECTURE.md § Agentic auto-recovery): the merchant does not click through
-      // recovery for every failed payment. The case is carried through the SAME evaluate
-      // pipeline and, if the Policy Engine approves an autonomous action, that action is
-      // executed now — reusing pipeline/autoRecovery.js, never a parallel engine. Disabled only
-      // when AUTO_RECOVERY_ENABLED=false (and forced off in the shared test harness).
+      // Approval-gated autonomy (ARCHITECTURE.md § Recovery plans): PayRevive autonomously runs
+      // the SAME evaluate pipeline and records the decision as an item on the merchant's
+      // recovery plan. It does NOT contact the customer — no payment link, no call — until the
+      // merchant confirms the plan (POST /api/recovery-plan/:id/confirm). Disabled only when
+      // RECOVERY_AUTOPLAN_ENABLED=false (and forced off in the shared test harness).
       let finalCase = recoveryCase;
-      let autoRecovery = null;
-      if (env.AUTO_RECOVERY_ENABLED) {
-        const result = await runAutomaticRecovery({ recoveryCase, merchant, customer, payment });
-        finalCase = result.recoveryCase;
-        autoRecovery = { active: true, decision: result.decision, executed: result.executed };
+      let recoveryPlan = null;
+      if (env.RECOVERY_AUTOPLAN_ENABLED) {
+        const result = await planRecoveryForCase({ recoveryCase, merchant, customer, payment });
+        finalCase = result.recoveryCase || recoveryCase;
+        recoveryPlan = result.plan ? serializePlan(result.plan) : null;
       }
 
-      res.status(201).json({ recoveryCase: finalCase, payment, customer, autoRecovery });
+      res.status(201).json({ recoveryCase: finalCase, payment, customer, recoveryPlan });
     } catch (err) {
       next(err);
     }

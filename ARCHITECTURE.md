@@ -238,6 +238,9 @@ resource route re-verifies `resource.merchantId === req.merchant.id` before retu
 | POST | `/api/recovery-cases/:id/stop` | forces `STOPPED`, writes audit event |
 | POST | `/api/recovery-cases/:id/voice-intent` | rate-limited; body: `{transcript}`; see `AGENT_DESIGN.md` |
 | GET | `/api/recovery-cases/:id/audit` | full audit trail for the case |
+| GET | `/api/recovery-plan/current` | the merchant's open (PENDING_APPROVAL) recovery plan, or the most recent one, or null — see § Recovery plans |
+| GET | `/api/recovery-plan/:id` | 404 if not found OR not owned by merchant |
+| POST | `/api/recovery-plan/:id/confirm` | rate-limited; the single merchant confirmation — revalidates + executes approved actions; idempotent |
 | POST | `/api/checkout-sessions/:id/simulate-abandonment` | demo trigger, rate-limited; invokes the exact same Revenue Risk Detector pipeline as real timeout-based detection — see § Checkout abandonment detection |
 | POST | `/api/evaluation/run` | rate-limited, likely admin/demo-only given cost/time |
 | GET | `/api/evaluation/:id` | evaluation run results |
@@ -405,39 +408,52 @@ both call it, so there is exactly one Razorpay-executing code path, never a voic
   available and Razorpay-free — see § Razorpay integration plan (implemented, Day 6) — without
   duplicating the state-machine logic between the two paths.
 
-## Agentic auto-recovery
+## Recovery plans (approval-gated autonomy)
 
-DETECT → EVALUATE → EXECUTE stay three separate functions (`riskDetector` →
-`orchestrator.runEvaluationPipeline` → `actionExecutor` / `tools.createLivePaymentLink`), each
-still individually reachable via its own route. What changed is the *default trigger*: a merchant
-no longer clicks through recovery for every failed payment.
+PayRevive does the hard work automatically — detect, analyze, run eligibility + policy,
+prioritize, prepare — and then asks the merchant for exactly **one** decision: *confirm this
+plan*. No customer-facing action (payment link, outbound voice call) happens before that
+confirmation. The decision engine is untouched; the approval step sits strictly between the
+POLICY DECISION and EXECUTION.
 
-- **One new orchestrator, no second engine.** `server/src/pipeline/autoRecovery.js`
-  `runAutomaticRecovery()` is thin sequencing that calls the exact same functions the manual
-  routes call — `runEvaluationPipeline` (as `POST /:id/evaluate`), then `createLivePaymentLink`
-  (as `POST /:id/payment-link`) or the seeded `executeAction` (as `POST /:id/simulate-action`).
-  The Policy Engine is never bypassed: it only ever executes an action the pipeline itself moved
-  to `POLICY_APPROVED`. `ESCALATE` / `STOP` / `EXPIRE` outcomes are recorded
-  (`AUTO_RECOVERY_NO_ACTION`) and surfaced for merchant review, never auto-actioned.
-- **Trigger point.** `POST /api/demo/payment-failure` — the single place a `PAYMENT_FAILURE`
-  recovery case is born — calls `runAutomaticRecovery` immediately after
-  `REVENUE_RISK_DETECTED`. No polling loop, no background job. (Same "one pipeline, N triggers"
-  shape as checkout abandonment.)
-- **`START_VOICE_RECOVERY`** is a valid autonomous *decision* (the agent may pick it when
-  `merchant.policy.voiceEnabled` and the score ≥ 0.75) but there is no automated outbound
-  dialer, so the agent leaves the case `POLICY_APPROVED` and queues it
-  (`AUTO_RECOVERY_VOICE_QUEUED`) for the merchant to run the real live Hinglish session. It
-  never touches `voiceAttempts`.
-- **Idempotency.** `runEvaluationPipeline` is re-entrant; the live payment-link path goes
-  through `tools.js`'s atomic DB claim; a concurrent `save()` race is caught (`VersionError`)
-  and the fresher document adopted. Two concurrent triggers ⇒ exactly one link, one execution,
-  one audit chain.
-- **Failure safety.** A failed execution releases any claim, keeps the case retryable
-  (`POLICY_APPROVED`), writes `PAYMENT_LINK_CREATION_FAILED` / `AUTO_RECOVERY_FAILED`, and never
-  marks the case recovered. `recoveredAmount` is still only ever credited by a verified
-  `payment_link.paid` webhook.
-- **Kill switch.** `AUTO_RECOVERY_ENABLED=false` (env) reverts to purely manual, merchant-driven
-  recovery. It is an ops-level flag, not a merchant-facing toggle; the Payments page shows
-  "Auto Recovery · Active/Off" as informational status only. The shared test harness forces it
-  off so the rest of the suite can assert intermediate pipeline states; `tests/autoRecovery.test.js`
+```
+PAYMENT FAILED → DETECT → ANALYZE → ELIGIBILITY → POLICY → BUILD RECOVERY PLAN
+              → WAIT FOR MERCHANT CONFIRMATION → EXECUTE APPROVED ACTIONS → VERIFY → AUDIT
+```
+
+- **`RecoveryPlan` model** (`server/src/models/RecoveryPlan.js`) — a lightweight tracking layer,
+  not a second case state machine. One `PENDING_APPROVAL` plan per merchant (partial unique
+  index); new failed payments append an item. Plan states: `PENDING_APPROVAL → APPROVED →
+  EXECUTING → COMPLETED | PARTIAL | FAILED | CANCELLED`. Each item carries `caseId`,
+  `intervention`, `reason`, `recoveryProbability`, `amount`, `customerFacing`,
+  `requiresMerchantApproval`, and its own `status`
+  (`PENDING/EXECUTED/ESCALATED/SKIPPED/REMOVED/FAILED`).
+- **PLAN** — `pipeline/recoveryPlan.js` `planRecoveryForCase()` runs on every failed payment
+  (gated by `RECOVERY_AUTOPLAN_ENABLED`, default on). It calls the **exact same**
+  `runEvaluationPipeline` the manual `/evaluate` route calls, persists the case + evaluate-phase
+  audit, then records the decision as a plan item and writes `RECOVERY_PLAN_CREATED`. It never
+  contacts a customer. Triggered from `POST /api/demo/payment-failure` right after
+  `REVENUE_RISK_DETECTED` — no polling loop, no background job.
+- **CONFIRM** — `POST /api/recovery-plan/:id/confirm` → `confirmRecoveryPlan()`. Auth +
+  merchant-ownership (404 for another merchant's plan). **Idempotent** via an atomic status
+  claim (`PENDING_APPROVAL → EXECUTING`); every later/concurrent call returns the current plan
+  and executes nothing. Writes `RECOVERY_PLAN_APPROVED` (actor `MERCHANT`).
+- **Revalidation before execution.** For every pending item, `confirmRecoveryPlan` reloads the
+  case/customer/merchant and re-runs the shared `evaluatePrecedence` (no duplicated policy
+  logic). If the case went terminal, the customer opted out, the autonomous-amount ceiling
+  dropped, the window expired, or attempts/voice were exhausted while the plan waited — the item
+  is `REMOVED` (audit `RECOVERY_PLAN_ITEM_REMOVED`), the case is re-resolved to the new terminal
+  status, and nothing executes. A plan past its `expiresAt` (24h) is `CANCELLED` wholesale.
+- **Execution reuses the existing safe paths.** `CREATE_PAYMENT_LINK` → `tools.createLivePaymentLink`
+  (atomic claim, Razorpay Test Mode) or the seeded `executeAction` when Razorpay isn't
+  configured. `START_VOICE_RECOVERY` → `integrations/telephony/provider.js` `initiateVoiceCall`
+  (a stub — no provider is wired up; the call is *initiated*, `voiceAttempts` is incremented,
+  the case stays `POLICY_APPROVED`, and the actual conversation still runs through
+  `routes/voice.js`). Audit: `PAYMENT_LINK_CREATED`, `VOICE_RECOVERY_STARTED`,
+  `RECOVERY_EXECUTED` (all actor `SYSTEM`), then `RECOVERY_PLAN_EXECUTED`.
+- **Revenue** is still only credited by a verified `payment_link.paid` webhook — a confirmed
+  link leaves the case `WAITING_OUTCOME` with `recoveredAmount` untouched.
+- **`RECOVERY_AUTOPLAN_ENABLED=false`** (ops-level env flag, not a merchant toggle) disables
+  auto-planning; plans can still be built/confirmed on demand. The shared test harness forces it
+  off so the rest of the suite can assert intermediate case states; `tests/recoveryPlan.test.js`
   opts back in.

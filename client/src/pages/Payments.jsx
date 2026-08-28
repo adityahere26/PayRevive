@@ -74,27 +74,27 @@ function recoveryStatusLabel(status) {
   return RECOVERY_STATUS_LABEL[status] || statusLabel(status);
 }
 
-// One-line note on what PayRevive actually did automatically for this case (from the audit
-// vocabulary), shown as a quiet caption under the status.
+// One-line note on where this case sits in the approval-gated flow, shown as a quiet caption
+// under the status.
 function autoActionCaption(recoveryCase) {
   if (!recoveryCase) return null;
   switch (recoveryCase.status) {
     case "WAITING_OUTCOME":
-      return "Auto: payment link sent — awaiting payment";
+      return "Payment link sent — awaiting payment";
     case "RECOVERED":
-      return "Recovered via automated recovery";
+      return "Recovered";
     case "POLICY_APPROVED":
       return recoveryCase.selectedIntervention === "START_VOICE_RECOVERY"
-        ? "Auto: queued for a voice call"
-        : "Auto: approved — action in progress";
+        ? "In recovery plan — voice call, awaiting your confirmation"
+        : "In recovery plan — awaiting your confirmation";
     case "ESCALATED":
-      return "Auto: held for your review (policy)";
+      return "Escalated for your review";
     case "STOPPED":
-      return `Auto: no contact — ${humanize(recoveryCase.policyDecision) || "policy"}`;
+      return `No contact — ${humanize(recoveryCase.policyDecision) || "policy"}`;
     case "EXPIRED":
       return "Recovery window expired";
     case "RISK_DETECTED":
-      return "Queued for automatic recovery";
+      return "Being analysed";
     default:
       return null;
   }
@@ -155,43 +155,165 @@ function FloatingRecoveryChip({ row, style, delay }) {
   );
 }
 
-// Informational automation status — NOT a toggle. The backend has no merchant-level on/off
-// switch (only an ops-level env flag), so this states the current mode plainly rather than
-// offering a control that wouldn't do anything. When automation is off it says so.
-function AutoRecoveryStrip({ overview }) {
-  if (!overview) return null;
-  const active = overview.autoRecoveryActive;
-  const s = overview.recoverySummary || {};
-  const chips = [
-    { label: "Recovered", value: s.recovered, tone: "text-emerald-700" },
-    { label: "In progress", value: (s.inProgress || 0) + (s.awaitingOutcome || 0), tone: "text-cyan-700" },
-    { label: "Recoverable", value: s.recoverable, tone: "text-brand-700" },
-    { label: "Escalated", value: s.escalated, tone: "text-amber-700" },
-    { label: "Stopped", value: (s.stopped || 0) + (s.expired || 0) + (s.failed || 0), tone: "text-slate-500" },
-  ];
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-card">
-      <div className="flex items-center gap-3">
-        <span className={`inline-flex h-2 w-2 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-slate-300"}`} />
+const PLAN_INTERVENTION_LABEL = {
+  CREATE_PAYMENT_LINK: "Payment Links",
+  START_VOICE_RECOVERY: "Voice Calls",
+  ESCALATE: "Escalation",
+  STOP: "Stop",
+  RECORD_PROMISE_TO_PAY: "Promise to Pay",
+};
+const PLAN_TERMINAL = ["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"];
+
+// Approval-gated autonomy (ARCHITECTURE.md § Recovery plans). PayRevive prepares ONE plan; the
+// merchant makes ONE decision. This panel shows the prepared plan, takes the single
+// confirmation, then shows execution progress. It never implies customer contact has already
+// happened.
+function RecoveryPlanPanel({ plan, onConfirmed }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [localPlan, setLocalPlan] = useState(null);
+
+  const effective = localPlan || plan;
+  if (!effective) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-card">
+        <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
         <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-brand-900">
-            Auto Recovery · {active ? "Active" : "Off"}
-          </div>
+          <div className="text-xs font-bold uppercase tracking-wide text-brand-900">Recovery automation ready</div>
           <div className="mt-0.5 text-xs text-slate-500">
-            {active
-              ? "PayRevive automatically takes the policy-approved recovery action for eligible failed payments."
-              : "Automatic recovery is turned off — recover failed payments manually below."}
+            PayRevive prepares a recovery plan for every failed payment. Nothing reaches a customer
+            until you confirm it.
           </div>
         </div>
       </div>
-      {active && (
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
-          {chips.map((c) => (
-            <div key={c.label} className="text-right">
-              <span className={`text-base font-bold tabular-nums ${c.tone}`}>{c.value || 0}</span>
-              <span className="ml-1.5 text-[11px] uppercase tracking-wide text-slate-400">{c.label}</span>
+    );
+  }
+
+  const items = effective.items || [];
+  const summary = effective.summary || {};
+  const byIntervention = summary.byIntervention || {};
+  const pending = effective.status === "PENDING_APPROVAL";
+  const executing = effective.status === "EXECUTING";
+  const done = PLAN_TERMINAL.includes(effective.status);
+
+  const links = items.filter((i) => i.intervention === "CREATE_PAYMENT_LINK");
+  const voices = items.filter((i) => i.intervention === "START_VOICE_RECOVERY");
+  const escalations = items.filter((i) => i.intervention === "ESCALATE");
+  const linkDone = links.filter((i) => i.status === "EXECUTED").length;
+  const voiceDone = voices.filter((i) => i.status === "EXECUTED").length;
+
+  async function confirm() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await api.confirmRecoveryPlan(effective.id);
+      setLocalPlan(res.plan);
+      setOpen(false);
+      onConfirmed?.();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-brand-200/70 bg-white px-5 py-4 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wide text-brand-900">
+            {pending && "Recovery plan ready for approval"}
+            {executing && "Recovery plan executing"}
+            {done && `Recovery plan ${effective.status.toLowerCase()}`}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-brand-950">
+            {pending
+              ? "PayRevive has prepared a recovery plan."
+              : "PayRevive is working through the approved plan."}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            {summary.recoverable || 0} recoverable
+            <span className="mx-1.5 text-slate-300">·</span>
+            {formatINR(summary.amountAtRisk || 0)} at risk
+          </div>
+        </div>
+
+        {pending && !open && (
+          <Button onClick={() => setOpen(true)} className="uppercase tracking-wide">
+            Review &amp; Confirm Recovery
+          </Button>
+        )}
+      </div>
+
+      {/* Plan breakdown — always visible */}
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-slate-100 pt-3">
+        {Object.entries(byIntervention).map(([key, count]) => (
+          <div key={key} className="text-xs">
+            <span className="font-bold tabular-nums text-brand-900">{count}</span>{" "}
+            <span className="text-slate-500">{PLAN_INTERVENTION_LABEL[key] || humanize(key)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Review list + single confirmation */}
+      {pending && open && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
+            {items.map((i) => (
+              <div key={String(i.caseId)} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate text-slate-700">{i.customerName || "Customer"}</span>
+                <span className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-slate-500">
+                    {PLAN_INTERVENTION_LABEL[i.intervention] || humanize(i.intervention)}
+                    {i.customerFacing ? "" : " · info"}
+                  </span>
+                  <span className="font-medium tabular-nums text-brand-900">{formatINR(i.amount)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <Button onClick={confirm} disabled={busy} className="uppercase tracking-wide">
+              {busy ? "Confirming…" : "Confirm Recovery Plan"}
+            </Button>
+            <button type="button" onClick={() => setOpen(false)} className={buttonClasses({ variant: "tertiary" })}>
+              Cancel
+            </button>
+            {err && <span className="text-xs text-red-600">{err}</span>}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">
+            One confirmation authorises every customer-facing action below. Escalations are surfaced
+            for your review; STOP cases are left untouched.
+          </p>
+        </div>
+      )}
+
+      {/* Execution progress */}
+      {(executing || done) && (
+        <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
+          {links.length > 0 && (
+            <div className="rounded-xl bg-slate-50/80 px-3 py-2">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Payment Links</div>
+              <div className="text-sm font-semibold text-brand-900">
+                {linkDone} / {links.length} completed
+              </div>
             </div>
-          ))}
+          )}
+          {voices.length > 0 && (
+            <div className="rounded-xl bg-slate-50/80 px-3 py-2">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Voice Recovery</div>
+              <div className="text-sm font-semibold text-brand-900">
+                {voiceDone} / {voices.length} started
+              </div>
+            </div>
+          )}
+          {escalations.length > 0 && (
+            <div className="rounded-xl bg-amber-50 px-3 py-2">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-amber-600">Escalation</div>
+              <div className="text-sm font-semibold text-amber-800">{escalations.length} requires review</div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -226,13 +348,13 @@ function OverviewHero({ overview, loading, error, onRetry }) {
       <div className="relative max-w-2xl">
         <Eyebrow tone="dark">Revenue recovery console</Eyebrow>
         <h1 className="mt-4 text-3xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl">
-          PayRevive automatically works
+          PayRevive prepares the plan.
           <br />
-          through failed payments.
+          You confirm it once.
         </h1>
         <p className="mt-4 max-w-md text-base text-mint-100/90 sm:text-lg">
-          Every failed payment is detected, diagnosed, checked against your policy, and — where
-          the policy approves it — recovered, without you touching each one.
+          Every failed payment is detected, diagnosed, and checked against your policy
+          automatically. Nothing reaches a customer until you approve the recovery plan.
         </p>
       </div>
 
@@ -690,7 +812,7 @@ export default function Payments() {
 
       <OverviewHero overview={overview} loading={!overview && !error} error={error} onRetry={load} />
 
-      <AutoRecoveryStrip overview={overview} />
+      <RecoveryPlanPanel plan={overview?.recoveryPlan} onConfirmed={load} />
 
       <div className="relative overflow-hidden rounded-3xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
@@ -698,8 +820,8 @@ export default function Payments() {
             <Eyebrow>Recovery queue</Eyebrow>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">Failed Payments</h2>
             <p className="mt-1.5 max-w-xl text-sm text-slate-500">
-              PayRevive works through these automatically. You can also select customers below
-              and run a manual voice call or payment-link batch — an override, not the main path.
+              PayRevive prepares a recovery plan for these — confirm it above. You can also select
+              customers here and run a manual voice call or payment-link batch as an override.
             </p>
           </div>
           {overview && failedPayments.length > 0 && (

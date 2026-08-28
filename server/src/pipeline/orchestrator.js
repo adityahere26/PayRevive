@@ -71,10 +71,11 @@ export function runEvaluationPipeline({ recoveryCase, policy, customer, payment,
   });
 
   // interventionOptions.voiceEnabled is threaded straight from merchant.policy.voiceEnabled by
-  // the auto-recovery orchestrator (pipeline/autoRecovery.js). The default {} preserves the
+  // the recovery-plan builder (pipeline/recoveryPlan.js). The default {} preserves the
   // pre-existing behavior for every other caller (the /evaluate route, unit tests): voice stays
   // off and the >=0.75 band falls through to CREATE_PAYMENT_LINK. Whatever is returned is still
-  // only a *candidate* — evaluatePolicy below has final say.
+  // only a *candidate* — evaluatePolicy below has final say, and no customer-facing action runs
+  // until the merchant confirms the plan.
   const candidateAction = selectIntervention(recoveryCase, interventionOptions);
   transition(recoveryCase, "ACTION_SELECTED");
   recoveryCase.selectedIntervention = candidateAction;

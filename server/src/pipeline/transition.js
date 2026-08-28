@@ -15,7 +15,15 @@ const ALLOWED_TRANSITIONS = {
   ANALYZING: ["ELIGIBLE", "STOPPED", "ESCALATED", "EXPIRED"],
   ELIGIBLE: ["ACTION_SELECTED"],
   ACTION_SELECTED: ["POLICY_APPROVED", "STOPPED", "ESCALATED", "EXPIRED"],
-  POLICY_APPROVED: ["ACTION_EXECUTED"],
+  // STOPPED/ESCALATED/EXPIRED from POLICY_APPROVED cover the approval-gate revalidation
+  // (server/src/pipeline/recoveryPlan.js): a case can sit POLICY_APPROVED for a while waiting
+  // for the merchant to confirm the recovery plan. Immediately before executing, policy is
+  // re-checked against the *current* customer/merchant/case state — if the customer opted out,
+  // the autonomous-amount ceiling dropped, or the window expired in the meantime, the case
+  // resolves to that new terminal status instead of executing a stale decision. Same "policy
+  // has final say right before execution" principle as the ACTION_EXECUTED branches below, one
+  // step earlier.
+  POLICY_APPROVED: ["ACTION_EXECUTED", "STOPPED", "ESCALATED", "EXPIRED"],
   // STOPPED/ESCALATED here cover a STOP/ESCALATE candidate action being "executed" (the
   // executor's job for those two actions IS the terminal transition — there is no external
   // outcome to wait for the way there is for a payment link).
