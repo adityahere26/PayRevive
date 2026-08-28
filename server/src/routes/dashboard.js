@@ -6,7 +6,8 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { requireAuth } from "../middleware/auth.js";
-import { RecoveryCase, Customer, Payment } from "../models/index.js";
+import { RecoveryCase, Customer, Payment, AuditLog } from "../models/index.js";
+import { env } from "../config/env.js";
 
 export const dashboardRouter = Router();
 
@@ -16,7 +17,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
   try {
     const merchantId = new mongoose.Types.ObjectId(req.merchant.id);
 
-    const [riskAgg, recoveredAgg, statusCounts, revenueByStatusAgg, interventionAgg, recentCases] = await Promise.all([
+    const [riskAgg, recoveredAgg, statusCounts, revenueByStatusAgg, interventionAgg, recentCases, autoExecutedCount, autoVoiceQueuedCount] = await Promise.all([
       RecoveryCase.aggregate([
         { $match: { merchantId } },
         { $group: { _id: null, totalAmount: { $sum: "$amount" }, count: { $sum: 1 } } },
@@ -52,6 +53,13 @@ dashboardRouter.get("/summary", async (req, res, next) => {
         },
       ]),
       RecoveryCase.find({ merchantId }).sort({ createdAt: -1 }).limit(10),
+      // Automated interventions the agent actually carried out — an AUTO_RECOVERY_EXECUTED
+      // audit event is written by pipeline/autoRecovery.js only after an action ran (live link,
+      // simulated, or STOP). AUTO_RECOVERY_VOICE_QUEUED counts cases the agent approved for a
+      // live voice session. Real merchant audit data only — the batch evaluator never writes
+      // AuditLog rows.
+      AuditLog.countDocuments({ merchantId, eventType: "AUTO_RECOVERY_EXECUTED" }),
+      AuditLog.countDocuments({ merchantId, eventType: "AUTO_RECOVERY_VOICE_QUEUED" }),
     ]);
 
     const statusBreakdown = Object.fromEntries(statusCounts.map((s) => [s._id, s.count]));
@@ -78,6 +86,8 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       revenueByStatus,
       interventionBreakdown,
       recentCases,
+      autoRecoveryActive: env.AUTO_RECOVERY_ENABLED,
+      automatedInterventions: autoExecutedCount + autoVoiceQueuedCount,
     });
   } catch (err) {
     next(err);
@@ -146,12 +156,33 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
       };
     });
 
+    // Rollup of where the agent has taken every failed payment on this page — computed from the
+    // cases' own pipeline statuses, never fabricated. IN_PROGRESS folds the intermediate
+    // states (policy-approved, action executed, awaiting a Razorpay outcome) the merchant does
+    // not need to distinguish at a glance.
+    const IN_PROGRESS = new Set(["ANALYZING", "ELIGIBLE", "ACTION_SELECTED", "POLICY_APPROVED", "ACTION_EXECUTED"]);
+    const recoverySummary = { recoverable: 0, inProgress: 0, awaitingOutcome: 0, recovered: 0, escalated: 0, stopped: 0, failed: 0, expired: 0, noCase: 0 };
+    for (const row of failedPayments) {
+      const s = row.recoveryCase?.status;
+      if (!s) recoverySummary.noCase += 1;
+      else if (s === "RISK_DETECTED") recoverySummary.recoverable += 1;
+      else if (s === "WAITING_OUTCOME") recoverySummary.awaitingOutcome += 1;
+      else if (s === "RECOVERED") recoverySummary.recovered += 1;
+      else if (s === "ESCALATED") recoverySummary.escalated += 1;
+      else if (s === "STOPPED") recoverySummary.stopped += 1;
+      else if (s === "FAILED") recoverySummary.failed += 1;
+      else if (s === "EXPIRED") recoverySummary.expired += 1;
+      else if (IN_PROGRESS.has(s)) recoverySummary.inProgress += 1;
+    }
+
     res.status(200).json({
       totalClients,
       paymentsPassed,
       paymentsFailed,
       failedPayments,
       totalFailedPayments,
+      recoverySummary,
+      autoRecoveryActive: env.AUTO_RECOVERY_ENABLED,
       page,
       limit,
     });

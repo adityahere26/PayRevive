@@ -11,7 +11,9 @@ import { validateBody } from "../lib/validate.js";
 import { NotFoundError } from "../lib/errors.js";
 import { Merchant, Customer, Payment } from "../models/index.js";
 import { detectPaymentFailureRisk } from "../pipeline/riskDetector.js";
+import { runAutomaticRecovery } from "../pipeline/autoRecovery.js";
 import { writeAuditLog } from "../audit/auditLogger.js";
+import { env } from "../config/env.js";
 
 export const demoRouter = Router();
 
@@ -108,7 +110,20 @@ demoRouter.post(
         result: recoveryCase.status,
       });
 
-      res.status(201).json({ recoveryCase, payment, customer });
+      // Agentic auto-recovery (ARCHITECTURE.md § Agentic auto-recovery): the merchant does not click through
+      // recovery for every failed payment. The case is carried through the SAME evaluate
+      // pipeline and, if the Policy Engine approves an autonomous action, that action is
+      // executed now — reusing pipeline/autoRecovery.js, never a parallel engine. Disabled only
+      // when AUTO_RECOVERY_ENABLED=false (and forced off in the shared test harness).
+      let finalCase = recoveryCase;
+      let autoRecovery = null;
+      if (env.AUTO_RECOVERY_ENABLED) {
+        const result = await runAutomaticRecovery({ recoveryCase, merchant, customer, payment });
+        finalCase = result.recoveryCase;
+        autoRecovery = { active: true, decision: result.decision, executed: result.executed };
+      }
+
+      res.status(201).json({ recoveryCase: finalCase, payment, customer, autoRecovery });
     } catch (err) {
       next(err);
     }

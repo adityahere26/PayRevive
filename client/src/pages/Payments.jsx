@@ -38,12 +38,12 @@ const DOT_TONE = {
   brand: { dot: "bg-brand-500", text: "text-brand-700" },
 };
 
-function StatusIndicator({ status, size = "md" }) {
+function StatusIndicator({ status, size = "md", label }) {
   const meta = DOT_TONE[statusTone(status)] || DOT_TONE.slate;
   return (
     <span className={`inline-flex items-center gap-1.5 font-medium ${meta.text} ${size === "sm" ? "text-xs" : "text-sm"}`}>
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
-      {statusLabel(status)}
+      {label || statusLabel(status)}
     </span>
   );
 }
@@ -54,13 +54,50 @@ function initials(name) {
   return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
 }
 
-// What the merchant can do next, folded into a quiet caption line rather than a second pill —
-// only shown when there's something concrete to say.
-function interventionHint(recoveryCase) {
+// Plain-language "Recovery Status" wording from the spec's vocabulary, derived from the case's
+// own pipeline status — no new backend state.
+const RECOVERY_STATUS_LABEL = {
+  RISK_DETECTED: "Recoverable",
+  ANALYZING: "Recovery in progress",
+  ELIGIBLE: "Recovery in progress",
+  ACTION_SELECTED: "Recovery in progress",
+  POLICY_APPROVED: "Recovery in progress",
+  ACTION_EXECUTED: "Recovery in progress",
+  WAITING_OUTCOME: "Waiting outcome",
+  RECOVERED: "Recovered",
+  FAILED: "Failed",
+  STOPPED: "Stopped",
+  ESCALATED: "Escalated",
+  EXPIRED: "Expired",
+};
+function recoveryStatusLabel(status) {
+  return RECOVERY_STATUS_LABEL[status] || statusLabel(status);
+}
+
+// One-line note on what PayRevive actually did automatically for this case (from the audit
+// vocabulary), shown as a quiet caption under the status.
+function autoActionCaption(recoveryCase) {
   if (!recoveryCase) return null;
-  if (recoveryCase.selectedIntervention) return `Recommended: ${humanize(recoveryCase.selectedIntervention)}`;
-  if (EVALUABLE_STATUSES.includes(recoveryCase.status)) return "Not yet evaluated";
-  return null;
+  switch (recoveryCase.status) {
+    case "WAITING_OUTCOME":
+      return "Auto: payment link sent — awaiting payment";
+    case "RECOVERED":
+      return "Recovered via automated recovery";
+    case "POLICY_APPROVED":
+      return recoveryCase.selectedIntervention === "START_VOICE_RECOVERY"
+        ? "Auto: queued for a voice call"
+        : "Auto: approved — action in progress";
+    case "ESCALATED":
+      return "Auto: held for your review (policy)";
+    case "STOPPED":
+      return `Auto: no contact — ${humanize(recoveryCase.policyDecision) || "policy"}`;
+    case "EXPIRED":
+      return "Recovery window expired";
+    case "RISK_DETECTED":
+      return "Queued for automatic recovery";
+    default:
+      return null;
+  }
 }
 const CURRENCY_MOTIFS = [
   { symbol: "₹", className: "text-brand-300/70 text-4xl", style: { top: "8%", left: "3%" } },
@@ -118,6 +155,49 @@ function FloatingRecoveryChip({ row, style, delay }) {
   );
 }
 
+// Informational automation status — NOT a toggle. The backend has no merchant-level on/off
+// switch (only an ops-level env flag), so this states the current mode plainly rather than
+// offering a control that wouldn't do anything. When automation is off it says so.
+function AutoRecoveryStrip({ overview }) {
+  if (!overview) return null;
+  const active = overview.autoRecoveryActive;
+  const s = overview.recoverySummary || {};
+  const chips = [
+    { label: "Recovered", value: s.recovered, tone: "text-emerald-700" },
+    { label: "In progress", value: (s.inProgress || 0) + (s.awaitingOutcome || 0), tone: "text-cyan-700" },
+    { label: "Recoverable", value: s.recoverable, tone: "text-brand-700" },
+    { label: "Escalated", value: s.escalated, tone: "text-amber-700" },
+    { label: "Stopped", value: (s.stopped || 0) + (s.expired || 0) + (s.failed || 0), tone: "text-slate-500" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-card">
+      <div className="flex items-center gap-3">
+        <span className={`inline-flex h-2 w-2 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-slate-300"}`} />
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wide text-brand-900">
+            Auto Recovery · {active ? "Active" : "Off"}
+          </div>
+          <div className="mt-0.5 text-xs text-slate-500">
+            {active
+              ? "PayRevive automatically takes the policy-approved recovery action for eligible failed payments."
+              : "Automatic recovery is turned off — recover failed payments manually below."}
+          </div>
+        </div>
+      </div>
+      {active && (
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+          {chips.map((c) => (
+            <div key={c.label} className="text-right">
+              <span className={`text-base font-bold tabular-nums ${c.tone}`}>{c.value || 0}</span>
+              <span className="ml-1.5 text-[11px] uppercase tracking-wide text-slate-400">{c.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewHero({ overview, loading, error, onRetry }) {
   const total = overview?.totalClients ?? 0;
   const passed = overview?.paymentsPassed ?? 0;
@@ -146,12 +226,13 @@ function OverviewHero({ overview, loading, error, onRetry }) {
       <div className="relative max-w-2xl">
         <Eyebrow tone="dark">Revenue recovery console</Eyebrow>
         <h1 className="mt-4 text-3xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl">
-          See what went through.
+          PayRevive automatically works
           <br />
-          Recover what didn't.
+          through failed payments.
         </h1>
         <p className="mt-4 max-w-md text-base text-mint-100/90 sm:text-lg">
-          Monitor every payment. Recover the ones that don't go through.
+          Every failed payment is detected, diagnosed, checked against your policy, and — where
+          the policy approves it — recovered, without you touching each one.
         </p>
       </div>
 
@@ -205,15 +286,32 @@ function OverviewHero({ overview, loading, error, onRetry }) {
   );
 }
 
-// Desktop/tablet row — a spacious editorial list row, not a table cell: one avatar, one
-// typographic block (name + why-it-failed-and-when caption), amount, and a dot-status with an
-// optional one-line "what next" hint. No grid lines, no second pill.
+// Column header strip for the desktop list. Kept in lockstep with FailedPaymentRow's grid.
+const FAILED_GRID = "grid grid-cols-[1.5rem_1.7fr_1.3fr_0.9fr_1.3fr_1.1fr_0.7fr] items-center gap-4";
+
+function FailedPaymentsHeader() {
+  return (
+    <div className={`${FAILED_GRID} border-b border-slate-100 px-6 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400`}>
+      <span />
+      <span>Customer</span>
+      <span>Failure Reason</span>
+      <span className="text-right">Amount</span>
+      <span>Recovery Status</span>
+      <span>Intervention</span>
+      <span className="text-right">Date</span>
+    </div>
+  );
+}
+
+// Desktop/tablet row — a columnar list row (Customer · Failure Reason · Amount · Recovery
+// Status · Intervention · Date). Every value is the pipeline's own; the caption under the
+// status is what PayRevive did automatically.
 function FailedPaymentRow({ row, selected, selectable, onToggle }) {
   const rc = row.recoveryCase;
-  const hint = interventionHint(rc);
+  const caption = autoActionCaption(rc);
   return (
     <div
-      className={`flex items-center gap-4 border-b border-slate-100 px-6 py-5 transition-colors last:border-0 hover:bg-mint-50/50 ${selected ? "bg-mint-50/70" : ""}`}
+      className={`${FAILED_GRID} border-b border-slate-100 px-6 py-4 transition-colors last:border-0 hover:bg-mint-50/50 ${selected ? "bg-mint-50/70" : ""}`}
     >
       <input
         type="checkbox"
@@ -222,36 +320,35 @@ function FailedPaymentRow({ row, selected, selectable, onToggle }) {
         onChange={() => onToggle(rc.id)}
         className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-700 focus:ring-brand-400 disabled:opacity-30"
       />
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-700">
-        {initials(row.customerName)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-base font-semibold text-brand-900">{row.customerName || "Unknown customer"}</div>
-        <div className="mt-0.5 truncate text-xs text-slate-400">
-          {humanize(row.failureReason) || "Unknown reason"}
-          <span className="mx-1.5 text-slate-300">·</span>
-          <span title={new Date(row.createdAt).toLocaleString()}>
-            {new Date(row.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-          </span>
-          {row.customerOptedOut && <span className="ml-1.5 text-amber-600">· Opted out of contact</span>}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">
+          {initials(row.customerName)}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-brand-900">{row.customerName || "Unknown customer"}</div>
+          {row.customerOptedOut && <div className="text-[11px] text-amber-600">Opted out of contact</div>}
         </div>
       </div>
-      <div className="shrink-0 text-right">
-        <div className="text-lg font-bold tabular-nums text-brand-900">{formatINR(row.amount)}</div>
+      <div className="truncate text-sm text-slate-500">{humanize(row.failureReason) || "Unknown reason"}</div>
+      <div className="text-right text-sm font-bold tabular-nums text-brand-900">{formatINR(row.amount)}</div>
+      <div className="min-w-0">
+        {rc ? <StatusIndicator status={rc.status} size="sm" label={recoveryStatusLabel(rc.status)} /> : <span className="text-sm text-slate-300">No case</span>}
+        {caption && <div className="mt-0.5 truncate text-[11px] text-slate-400" title={caption}>{caption}</div>}
       </div>
-      <div className="hidden w-48 shrink-0 text-right sm:block">
-        {rc ? <StatusIndicator status={rc.status} /> : <span className="text-sm text-slate-300">No case</span>}
-        {hint && <div className="mt-0.5 text-[11px] text-slate-400">{hint}</div>}
+      <div className="truncate text-xs text-slate-500">
+        {rc?.selectedIntervention ? humanize(rc.selectedIntervention) : "—"}
+      </div>
+      <div className="text-right text-xs text-slate-400" title={new Date(row.createdAt).toLocaleString()}>
+        {new Date(row.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
       </div>
     </div>
   );
 }
 
-// Mobile card — same visual language as the row above (avatar, dot-status, one hint line)
-// rather than a shrunken table row.
+// Mobile card — same fields as the desktop row, stacked.
 function FailedPaymentCard({ row, selected, selectable, onToggle }) {
   const rc = row.recoveryCase;
-  const hint = interventionHint(rc);
+  const caption = autoActionCaption(rc);
   return (
     <div className={`rounded-2xl border p-4 shadow-card ${selected ? "border-brand-200 bg-mint-50/60" : "border-slate-200/80 bg-white"}`}>
       <div className="flex items-start gap-3">
@@ -278,8 +375,11 @@ function FailedPaymentCard({ row, selected, selectable, onToggle }) {
             <div className="shrink-0 text-right text-sm font-bold tabular-nums text-brand-900">{formatINR(row.amount)}</div>
           </div>
           <div className="mt-2.5 space-y-1 border-t border-slate-100 pt-2.5">
-            {rc ? <StatusIndicator status={rc.status} size="sm" /> : <span className="text-xs text-slate-300">No case</span>}
-            {hint && <div className="text-[11px] text-slate-400">{hint}</div>}
+            {rc ? <StatusIndicator status={rc.status} size="sm" label={recoveryStatusLabel(rc.status)} /> : <span className="text-xs text-slate-300">No case</span>}
+            {caption && <div className="text-[11px] text-slate-400">{caption}</div>}
+            {rc?.selectedIntervention && (
+              <div className="text-[11px] text-slate-400">Intervention: {humanize(rc.selectedIntervention)}</div>
+            )}
           </div>
         </div>
       </div>
@@ -590,14 +690,16 @@ export default function Payments() {
 
       <OverviewHero overview={overview} loading={!overview && !error} error={error} onRetry={load} />
 
+      <AutoRecoveryStrip overview={overview} />
+
       <div className="relative overflow-hidden rounded-3xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
           <div>
             <Eyebrow>Recovery queue</Eyebrow>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-900 sm:text-3xl">Failed Payments</h2>
             <p className="mt-1.5 max-w-xl text-sm text-slate-500">
-              These customers may require recovery — select one or more to start a voice
-              recovery call or send a Razorpay Test Mode payment link.
+              PayRevive works through these automatically. You can also select customers below
+              and run a manual voice call or payment-link batch — an override, not the main path.
             </p>
           </div>
           {overview && failedPayments.length > 0 && (
@@ -649,6 +751,9 @@ export default function Payments() {
                 </span>
               </label>
               <div className="flex items-center gap-2">
+                <span className="mr-1 hidden text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:inline">
+                  Manual override
+                </span>
                 <button
                   type="button"
                   onClick={() => openFlow("call")}
@@ -662,7 +767,7 @@ export default function Payments() {
                   type="button"
                   onClick={() => openFlow("link")}
                   disabled={selected.size === 0}
-                  className={buttonClasses({ size: "sm", className: "uppercase tracking-wide" })}
+                  className={buttonClasses({ variant: "secondary", size: "sm", className: "uppercase tracking-wide" })}
                 >
                   <LinkIcon className="h-3.5 w-3.5" />
                   Send Payment Links
@@ -670,10 +775,9 @@ export default function Payments() {
               </div>
             </div>
 
-            {/* Editorial list — sm and up. Deliberately not a <table>: one spacious row per
-                customer (avatar, name + why/when caption, amount, dot-status) instead of a
-                dense grid of cells and badges. */}
+            {/* Columnar list — sm and up. */}
             <div className="hidden sm:block">
+              <FailedPaymentsHeader />
               {failedPayments.map((row) => (
                 <FailedPaymentRow
                   key={row.paymentId}

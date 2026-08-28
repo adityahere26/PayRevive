@@ -20,10 +20,10 @@ import { selectIntervention } from "./interventionSelector.js";
 import { evaluatePolicy } from "../policy/policyEngine.js";
 
 /**
- * @param {{recoveryCase: object, policy: object, customer: object, payment: object|null, history: object}} args
+ * @param {{recoveryCase: object, policy: object, customer: object, payment: object|null, history: object, interventionOptions?: {voiceEnabled?: boolean}}} args
  * @returns {{recoveryCase: object, auditEntries: Array<{eventType: string, reason: string|null, result: string|null, metadata: object}>}}
  */
-export function runEvaluationPipeline({ recoveryCase, policy, customer, payment, history }) {
+export function runEvaluationPipeline({ recoveryCase, policy, customer, payment, history, interventionOptions = {} }) {
   const auditEntries = [];
 
   if (recoveryCase.status === "FAILED" || recoveryCase.status === "RISK_DETECTED") {
@@ -70,7 +70,12 @@ export function runEvaluationPipeline({ recoveryCase, policy, customer, payment,
     metadata: { reasonCodes },
   });
 
-  const candidateAction = selectIntervention(recoveryCase);
+  // interventionOptions.voiceEnabled is threaded straight from merchant.policy.voiceEnabled by
+  // the auto-recovery orchestrator (pipeline/autoRecovery.js). The default {} preserves the
+  // pre-existing behavior for every other caller (the /evaluate route, unit tests): voice stays
+  // off and the >=0.75 band falls through to CREATE_PAYMENT_LINK. Whatever is returned is still
+  // only a *candidate* — evaluatePolicy below has final say.
+  const candidateAction = selectIntervention(recoveryCase, interventionOptions);
   transition(recoveryCase, "ACTION_SELECTED");
   recoveryCase.selectedIntervention = candidateAction;
   auditEntries.push({

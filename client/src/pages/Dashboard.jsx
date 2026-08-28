@@ -135,7 +135,7 @@ function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onTogg
 
           <div className="hidden bg-white/15 sm:block" />
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             <div>
               <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Recovered</div>
               <div className="mt-1.5 text-2xl font-bold tracking-tight text-white sm:text-3xl">{formatINR(summary.recoveredRevenue)}</div>
@@ -147,6 +147,15 @@ function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onTogg
                 {recoveryRate === null ? "—" : `${recoveryRate}%`}
               </div>
               <div className="mt-1 text-xs text-mint-100/70">recovered ÷ total</div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-mint-200">Automated Interventions</div>
+              <div className="mt-1.5 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                {summary.automatedInterventions || 0}
+              </div>
+              <div className="mt-1 text-xs text-mint-100/70">
+                {summary.autoRecoveryActive ? "auto recovery active" : "auto recovery off"}
+              </div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-wide text-amber-300">Failed Payments</div>

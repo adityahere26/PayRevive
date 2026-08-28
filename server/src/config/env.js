@@ -65,6 +65,13 @@ function loadEnv() {
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || null,
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || null,
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || null,
+    // Agentic auto-recovery: when a PAYMENT_FAILURE recovery case is created, immediately run
+    // it through the SAME deterministic evaluate pipeline and (if the Policy Engine approves an
+    // autonomous action) execute that action — no per-case merchant click. On by default;
+    // set AUTO_RECOVERY_ENABLED=false to fall back to purely manual, merchant-driven recovery.
+    // The shared test harness forces this off for step-by-step determinism (see
+    // tests/testUtils/testServer.js); tests/autoRecovery.test.js opts back in explicitly.
+    AUTO_RECOVERY_ENABLED: process.env.AUTO_RECOVERY_ENABLED !== "false",
   };
 }
 

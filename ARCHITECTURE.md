@@ -404,3 +404,40 @@ both call it, so there is exactly one Razorpay-executing code path, never a voic
   configured) omits it and is unaffected. This is what keeps the simulated executor permanently
   available and Razorpay-free — see § Razorpay integration plan (implemented, Day 6) — without
   duplicating the state-machine logic between the two paths.
+
+## Agentic auto-recovery
+
+DETECT → EVALUATE → EXECUTE stay three separate functions (`riskDetector` →
+`orchestrator.runEvaluationPipeline` → `actionExecutor` / `tools.createLivePaymentLink`), each
+still individually reachable via its own route. What changed is the *default trigger*: a merchant
+no longer clicks through recovery for every failed payment.
+
+- **One new orchestrator, no second engine.** `server/src/pipeline/autoRecovery.js`
+  `runAutomaticRecovery()` is thin sequencing that calls the exact same functions the manual
+  routes call — `runEvaluationPipeline` (as `POST /:id/evaluate`), then `createLivePaymentLink`
+  (as `POST /:id/payment-link`) or the seeded `executeAction` (as `POST /:id/simulate-action`).
+  The Policy Engine is never bypassed: it only ever executes an action the pipeline itself moved
+  to `POLICY_APPROVED`. `ESCALATE` / `STOP` / `EXPIRE` outcomes are recorded
+  (`AUTO_RECOVERY_NO_ACTION`) and surfaced for merchant review, never auto-actioned.
+- **Trigger point.** `POST /api/demo/payment-failure` — the single place a `PAYMENT_FAILURE`
+  recovery case is born — calls `runAutomaticRecovery` immediately after
+  `REVENUE_RISK_DETECTED`. No polling loop, no background job. (Same "one pipeline, N triggers"
+  shape as checkout abandonment.)
+- **`START_VOICE_RECOVERY`** is a valid autonomous *decision* (the agent may pick it when
+  `merchant.policy.voiceEnabled` and the score ≥ 0.75) but there is no automated outbound
+  dialer, so the agent leaves the case `POLICY_APPROVED` and queues it
+  (`AUTO_RECOVERY_VOICE_QUEUED`) for the merchant to run the real live Hinglish session. It
+  never touches `voiceAttempts`.
+- **Idempotency.** `runEvaluationPipeline` is re-entrant; the live payment-link path goes
+  through `tools.js`'s atomic DB claim; a concurrent `save()` race is caught (`VersionError`)
+  and the fresher document adopted. Two concurrent triggers ⇒ exactly one link, one execution,
+  one audit chain.
+- **Failure safety.** A failed execution releases any claim, keeps the case retryable
+  (`POLICY_APPROVED`), writes `PAYMENT_LINK_CREATION_FAILED` / `AUTO_RECOVERY_FAILED`, and never
+  marks the case recovered. `recoveredAmount` is still only ever credited by a verified
+  `payment_link.paid` webhook.
+- **Kill switch.** `AUTO_RECOVERY_ENABLED=false` (env) reverts to purely manual, merchant-driven
+  recovery. It is an ops-level flag, not a merchant-facing toggle; the Payments page shows
+  "Auto Recovery · Active/Off" as informational status only. The shared test harness forces it
+  off so the rest of the suite can assert intermediate pipeline states; `tests/autoRecovery.test.js`
+  opts back in.
