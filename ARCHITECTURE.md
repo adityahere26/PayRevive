@@ -118,9 +118,14 @@ Indexes: `merchantId`, `customerId`, `status`
 **recovery_cases**
 `_id, merchantId, customerId, sourceType (PAYMENT_FAILURE|CHECKOUT_ABANDONMENT), paymentId,
 checkoutSessionId, amount, currency, status (state machine, below), rootCause, recoveryProbability,
-reasonCodes[], selectedIntervention, policyDecision, attempts, voiceAttempts, recoveredAmount,
-recoveryWindowExpiresAt, razorpayPaymentLinkId, razorpayPaymentLinkShortUrl, razorpayLinkClaimedAt,
-createdAt, updatedAt`
+reasonCodes[], selectedIntervention, policyDecision, decisionRationale { headline, proposed,
+outcome, factors[] }, attempts, voiceAttempts, recoveredAmount, recoveryWindowExpiresAt,
+razorpayPaymentLinkId, razorpayPaymentLinkShortUrl, razorpayLinkClaimedAt, createdAt, updatedAt`
+
+`decisionRationale` is a plain-language explanation of the decision, generated deterministically
+by `pipeline/decisionRationale.js` from the fields above — purely descriptive, never an input to
+any decision. It powers the case-detail "Why PayRevive decided this" panel; its `headline` is
+also copied onto the recovery-plan item for the merchant's review.
 Indexes: `merchantId`, `customerId`, `status`, `createdAt`
 
 The three `razorpay*` fields are Day 6 additions, safe identifiers only (never a credential) — see
@@ -378,6 +383,14 @@ control uses.
   Customer upsert, the failed `Payment`, `detectPaymentFailureRisk` (module 1), the
   `REVENUE_RISK_DETECTED` audit, and (when `RECOVERY_AUTOPLAN_ENABLED`) `planRecoveryForCase`.
   The `source` is recorded in the `REVENUE_RISK_DETECTED` audit metadata; nothing else differs.
+- **Demo trigger is fenced to the demo merchant.** The `DEMO_SIMULATION` trigger and the other
+  DEMO/TEST data-creating routes (`POST /api/demo/payment-failure`, `/seed`,
+  `/complete-test-payment`) are guarded by `requireDemoMerchant` (`middleware/auth.js`) — a
+  non-`isDemo` merchant gets `404`. On a live deployment a real merchant therefore has no way to
+  inject synthetic cases or synthetic recovered revenue; their failures arrive only via the
+  inbound webhook. The client hides the corresponding controls using an `isDemoMerchant` flag on
+  the `/api/dashboard/summary` and `/api/dashboard/payments-overview` payloads. The public
+  "Enter Demo" merchant keeps full demo powers.
 - **Credential.** `models/Merchant.js` `integration.razorpay` holds `webhookId` (public, in the
   URL) and `webhookSecret` (`select: false`; a symmetric HMAC-SHA256 key, so stored as-is, not
   hashed — verification must recompute the same digest Razorpay sent). Issued lazily on the

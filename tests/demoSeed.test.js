@@ -265,3 +265,34 @@ test("11: POST /api/demo/seed seeds via HTTP and requires authentication", async
   const overview = await authedFetch("/api/dashboard/payments-overview", token).then((r) => r.json());
   assert.equal(overview.failedPayments.length, 10);
 });
+
+// ---- 12. the DEMO/TEST data-creating routes are fenced to the demo merchant --------------
+
+test("12: a non-demo merchant gets 404 from every /api/demo data-creating route; the demo merchant does not", async () => {
+  const { signMerchantToken } = await import("../server/src/lib/jwt.js");
+  const { Merchant } = ctx.models;
+  const realMerchant = await Merchant.create({ email: "real-merchant-gate@test.payrevive.dev", name: "Real Co" });
+  const realToken = signMerchantToken({ merchantId: realMerchant._id.toString(), isDemo: false }, { expiresIn: "1h" });
+
+  const failureBody = JSON.stringify({
+    customer: { name: "X", email: "x@real.example" },
+    amount: 1000,
+    failureReason: "insufficient_funds",
+  });
+  const pf = await authedFetch("/api/demo/payment-failure", realToken, { method: "POST", body: failureBody });
+  const seed = await authedFetch("/api/demo/seed", realToken, { method: "POST" });
+  const ctp = await authedFetch("/api/demo/complete-test-payment", realToken, { method: "POST" });
+  assert.equal(pf.status, 404);
+  assert.equal(seed.status, 404);
+  assert.equal(ctp.status, 404);
+
+  // dashboard payloads tell the client which controls to show
+  const summary = await authedFetch("/api/dashboard/summary", realToken).then((r) => r.json());
+  assert.equal(summary.isDemoMerchant, false);
+
+  const { token: demoTok } = await demoToken();
+  const demoPf = await authedFetch("/api/demo/payment-failure", demoTok, { method: "POST", body: failureBody });
+  assert.equal(demoPf.status, 201);
+  const demoSummary = await authedFetch("/api/dashboard/summary", demoTok).then((r) => r.json());
+  assert.equal(demoSummary.isDemoMerchant, true);
+});

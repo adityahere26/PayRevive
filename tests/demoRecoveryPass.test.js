@@ -383,9 +383,10 @@ test("11: another merchant can neither confirm nor complete this merchant's reco
   const confB = await authedFetch(`/api/recovery-plan/${planA.plan.id}/confirm`, tokenB, { method: "POST" });
   assert.equal(confB.status, 404);
 
-  // B's complete-test-payment finds nothing of A's
+  // B is not the demo merchant — the demo helper is fenced off entirely (requireDemoMerchant),
+  // so it can't reach A's data at all.
   const compB = await authedFetch("/api/demo/complete-test-payment", tokenB, { method: "POST" });
-  assert.equal((await compB.json()).completed.length, 0);
+  assert.equal(compB.status, 404);
 
   // A's measured recovery is untouched
   const stillA = await authedFetch("/api/dashboard/summary", tokenA).then((r) => r.json());

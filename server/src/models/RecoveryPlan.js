@@ -43,6 +43,9 @@ const recoveryPlanItemSchema = new Schema(
     // or ESCALATE / STOP for a case eligibility/policy already routed to a terminal status.
     intervention: { type: String, enum: [...INTERVENTIONS], required: true },
     reason: { type: String, default: null }, // policyDecision / root-cause-derived
+    // One-line plain-language "why" for this item (recoveryCase.decisionRationale.headline),
+    // shown in the merchant's plan review — see pipeline/decisionRationale.js.
+    decisionHeadline: { type: String, default: null },
     recoveryProbability: { type: Number, min: 0, max: 1, default: null },
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "INR" },

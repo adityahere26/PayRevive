@@ -168,7 +168,7 @@ const PLAN_TERMINAL = ["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"];
 // merchant makes ONE decision. This panel shows the prepared plan, takes the single
 // confirmation, then shows execution progress. It never implies customer contact has already
 // happened.
-function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, onConfirmed }) {
+function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, isDemoMerchant = false, onConfirmed }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -276,15 +276,20 @@ function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, onConfirm
         <div className="mt-3 border-t border-slate-100 pt-3">
           <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
             {items.map((i) => (
-              <div key={String(i.caseId)} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate text-slate-700">{i.customerName || "Customer"}</span>
-                <span className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs text-slate-500">
-                    {PLAN_INTERVENTION_LABEL[i.intervention] || humanize(i.intervention)}
-                    {i.customerFacing ? "" : " · info"}
+              <div key={String(i.caseId)} className="border-b border-slate-200/60 pb-1.5 last:border-0 last:pb-0">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate text-slate-700">{i.customerName || "Customer"}</span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs text-slate-500">
+                      {PLAN_INTERVENTION_LABEL[i.intervention] || humanize(i.intervention)}
+                      {i.customerFacing ? "" : " · info"}
+                    </span>
+                    <span className="font-medium tabular-nums text-brand-900">{formatINR(i.amount)}</span>
                   </span>
-                  <span className="font-medium tabular-nums text-brand-900">{formatINR(i.amount)}</span>
-                </span>
+                </div>
+                {i.decisionHeadline && (
+                  <div className="mt-0.5 text-[11px] leading-snug text-slate-400">{i.decisionHeadline}</div>
+                )}
               </div>
             ))}
           </div>
@@ -346,8 +351,9 @@ function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, onConfirm
           )}
 
           {/* DEMO control — completes the Test Mode payment for links awaiting an outcome by
-              delivering a signed webhook to the real webhook route. Not a "mark as paid" shortcut. */}
-          {awaitingOutcome > 0 && (
+              delivering a signed webhook to the real webhook route. Not a "mark as paid" shortcut.
+              Demo merchant only; a real merchant's link is paid by the actual customer. */}
+          {isDemoMerchant && awaitingOutcome > 0 && (
             <div className="mt-3 border-t border-slate-100 pt-3">
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -874,6 +880,7 @@ export default function Payments() {
         plan={overview?.recoveryPlan}
         awaitingOutcome={overview?.recoverySummary?.awaitingOutcome || 0}
         recovered={overview?.recoverySummary?.recovered || 0}
+        isDemoMerchant={Boolean(overview?.isDemoMerchant)}
         onConfirmed={load}
       />
 

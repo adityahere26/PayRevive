@@ -80,7 +80,7 @@ function RecoverySourceBadge({ recoveryCase }) {
 // "Revenue at Risk" leads as the large hero number (the problem the whole product exists to
 // address); Recovered Revenue / Recovery Rate / Failed Payments run as the secondary row —
 // mirroring Payments' Total Clients + Passed/Failed split.
-function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onToggleForm }) {
+function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onToggleForm, showSimulator }) {
   return (
     <div className="gradient-brand relative overflow-hidden rounded-3xl px-6 py-10 shadow-card-hover sm:px-10 sm:py-14">
       <div className="relative flex flex-wrap items-start justify-between gap-6">
@@ -91,15 +91,17 @@ function DashboardHero({ summary, recoveryRate, error, onRetry, formOpen, onTogg
             Where revenue is at risk, and what's being done about it.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onToggleForm}
-          aria-expanded={formOpen}
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-wide text-white transition-colors hover:bg-white/20"
-        >
-          <span className={`inline-block h-1.5 w-1.5 rounded-full ${formOpen ? "bg-white/50" : "bg-amber-400"}`} aria-hidden="true" />
-          {formOpen ? "Close simulator" : "Simulate Payment Failure"}
-        </button>
+        {showSimulator && (
+          <button
+            type="button"
+            onClick={onToggleForm}
+            aria-expanded={formOpen}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-wide text-white transition-colors hover:bg-white/20"
+          >
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${formOpen ? "bg-white/50" : "bg-amber-400"}`} aria-hidden="true" />
+            {formOpen ? "Close simulator" : "Simulate Payment Failure"}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -223,6 +225,10 @@ export default function Dashboard() {
   const recoveryRate =
     summary && summary.totalCases > 0 ? Math.round((summary.recoveredCases / summary.totalCases) * 100) : null;
 
+  // DEMO/TEST control — only the pre-seeded demo merchant may inject synthetic failures. A real
+  // merchant's failures arrive solely via their connected Razorpay webhook (Integration page).
+  const showSimulator = Boolean(summary?.isDemoMerchant);
+
   return (
     <div className="space-y-8">
       <DashboardHero
@@ -232,9 +238,10 @@ export default function Dashboard() {
         onRetry={loadSummary}
         formOpen={formOpen}
         onToggleForm={() => setFormOpen((v) => !v)}
+        showSimulator={showSimulator}
       />
 
-      {formOpen && (
+      {showSimulator && formOpen && (
         <Card>
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
@@ -428,7 +435,11 @@ export default function Dashboard() {
                 <EmptyState
                   icon={<InboxIcon className="h-5 w-5" />}
                   title="No recovery cases yet"
-                  description='Use "Simulate Payment Failure" above to create one.'
+                  description={
+                    showSimulator
+                      ? 'Use "Simulate Payment Failure" above to create one.'
+                      : "Failed payments from your connected Razorpay account will appear here. Connect it on the Integration page."
+                  }
                 />
               </div>
             ) : (

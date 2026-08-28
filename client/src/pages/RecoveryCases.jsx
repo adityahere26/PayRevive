@@ -117,7 +117,7 @@ export default function RecoveryCases() {
         <EmptyState
           icon={<InboxIcon className="h-5 w-5" />}
           title="No recovery cases match this filter"
-          description='Use "Simulate Payment Failure" on the Dashboard to create one.'
+          description="Failed payments flow in from your connected Razorpay account and open a recovery case automatically."
         />
       )}
 

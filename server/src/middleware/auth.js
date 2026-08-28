@@ -5,7 +5,7 @@
 
 import jwt from "jsonwebtoken";
 import { verifyMerchantToken } from "../lib/jwt.js";
-import { UnauthorizedError } from "../lib/errors.js";
+import { UnauthorizedError, NotFoundError } from "../lib/errors.js";
 
 export function requireAuth(req, _res, next) {
   const header = req.headers.authorization || "";
@@ -27,4 +27,20 @@ export function requireAuth(req, _res, next) {
     }
     next(new UnauthorizedError("INVALID_TOKEN", "Invalid authentication token"));
   }
+}
+
+/**
+ * Restricts a route to the pre-seeded demo merchant. Used to fence off the DEMO/TEST
+ * data-creating routes (routes/demo.js — Simulate Payment Failure, seed, complete-test-payment)
+ * so that on a live deployment a real merchant cannot inject synthetic cases or synthetic
+ * recovered revenue into their own dashboard; their failures only ever arrive via the Razorpay
+ * inbound webhook. Responds 404 rather than 403 so the route's existence isn't advertised.
+ * Must run after requireAuth (needs req.merchant).
+ */
+export function requireDemoMerchant(req, _res, next) {
+  if (!req.merchant?.isDemo) {
+    next(new NotFoundError("Not found"));
+    return;
+  }
+  next();
 }

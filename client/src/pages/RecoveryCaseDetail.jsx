@@ -215,6 +215,48 @@ export default function RecoveryCaseDetail() {
         </RevealOnScroll>
       )}
 
+      {/* WHY — the agent's reasoning in plain language (server/src/pipeline/decisionRationale.js) */}
+      {recoveryCase.decisionRationale?.headline && (
+        <RevealOnScroll delay={80}>
+          <Card title="Why PayRevive decided this">
+            <p className="text-lg font-medium leading-snug text-brand-950">
+              {recoveryCase.decisionRationale.headline}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {recoveryCase.decisionRationale.proposed && (
+                <>
+                  <span className="label-mono text-[11px] text-brand-400">PROPOSED</span>
+                  <Badge tone="slate">{recoveryCase.decisionRationale.proposed}</Badge>
+                  <span className="text-brand-300">→</span>
+                </>
+              )}
+              <span className="label-mono text-[11px] text-brand-400">OUTCOME</span>
+              <Badge
+                tone={
+                  recoveryCase.decisionRationale.outcome?.startsWith("Queued")
+                    ? "cyan"
+                    : recoveryCase.decisionRationale.outcome?.startsWith("Escalated")
+                      ? "amber"
+                      : "slate"
+                }
+              >
+                {recoveryCase.decisionRationale.outcome}
+              </Badge>
+            </div>
+            {recoveryCase.decisionRationale.factors?.length > 0 && (
+              <ul className="mt-5 space-y-2.5 border-t border-brand-900/8 pt-4">
+                {recoveryCase.decisionRationale.factors.map((f, i) => (
+                  <li key={i} className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+                    <span className="text-sm font-medium text-brand-900 sm:w-56 sm:shrink-0">{f.label}</span>
+                    <span className="text-xs text-brand-500">{f.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </RevealOnScroll>
+      )}
+
       {/* DECISION SUMMARY */}
       <RevealOnScroll delay={100}>
         <Card title="Decision Summary">

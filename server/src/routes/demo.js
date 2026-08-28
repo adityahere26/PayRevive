@@ -6,7 +6,7 @@
 // ("one ingest, three triggers").
 
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireDemoMerchant } from "../middleware/auth.js";
 import { paymentFailureRateLimiter } from "../middleware/rateLimit.js";
 import { validateBody } from "../lib/validate.js";
 import { NotFoundError } from "../lib/errors.js";
@@ -46,6 +46,7 @@ const paymentFailureSchema = {
 demoRouter.post(
   "/payment-failure",
   requireAuth,
+  requireDemoMerchant,
   paymentFailureRateLimiter,
   validateBody(paymentFailureSchema),
   async (req, res, next) => {
@@ -83,7 +84,7 @@ demoRouter.post(
 // the deterministic Buildathon scenario (100 clients / 90 passed / 10 failed), running the 10
 // failed payments through the real recovery pipeline. Merchant-scoped: only the caller's own
 // data is reset (see server/src/services/demoSeed.js). Same job as `npm run seed:demo`, over HTTP.
-demoRouter.post("/seed", requireAuth, paymentFailureRateLimiter, async (req, res, next) => {
+demoRouter.post("/seed", requireAuth, requireDemoMerchant, paymentFailureRateLimiter, async (req, res, next) => {
   try {
     const summary = await seedDemoDataset({ merchantId: req.merchant.id });
     res.status(201).json(summary);
@@ -98,7 +99,7 @@ demoRouter.post("/seed", requireAuth, paymentFailureRateLimiter, async (req, res
 // signature verification, cross-checks, idempotency and outcome logic all run unchanged — this
 // is not a "mark as paid" shortcut and it never mutates a RecoveryCase directly (see
 // server/src/services/demoTestPayment.js). Body: optional { caseId }.
-demoRouter.post("/complete-test-payment", requireAuth, paymentFailureRateLimiter, async (req, res, next) => {
+demoRouter.post("/complete-test-payment", requireAuth, requireDemoMerchant, paymentFailureRateLimiter, async (req, res, next) => {
   try {
     const caseId = typeof req.body?.caseId === "string" ? req.body.caseId : null;
     const hostPort = Number((req.get("host") || "").split(":")[1]);

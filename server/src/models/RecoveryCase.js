@@ -65,6 +65,11 @@ const recoveryCaseSchema = new Schema(
     // RECOVERY_WINDOW_EXPIRED, RETRY_LIMIT_REACHED, OPT_OUT_BEHAVIOR, APPROVED) — see
     // RECOVERY_POLICY.md § Policy precedence.
     policyDecision: { type: String, default: null },
+    // Plain-language explanation of the decision above, generated deterministically by
+    // pipeline/decisionRationale.js from the fields already on this case. Shape:
+    // { headline, proposed, outcome, factors: [{ label, detail }] }. Purely descriptive — it
+    // never influences a decision. Mixed, matching AuditLog.metadata.
+    decisionRationale: { type: Schema.Types.Mixed, default: null },
     attempts: { type: Number, default: 0, min: 0 },
     voiceAttempts: { type: Number, default: 0, min: 0 },
     recoveredAmount: { type: Number, default: 0, min: 0 },

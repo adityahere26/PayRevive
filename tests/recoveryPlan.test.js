@@ -151,7 +151,16 @@ test("1: a failed payment autonomously creates a PENDING_APPROVAL recovery plan 
   assert.equal(String(body.recoveryPlan.items[0].caseId), String(body.recoveryCase._id));
   assert.equal(razorpayCallLog.length, 0);
 
+  // The plain-language decision rationale (pipeline/decisionRationale.js) is populated on the
+  // case and its headline rides along on the plan item for the merchant's review.
+  assert.ok(body.recoveryCase.decisionRationale?.headline, "case carries a decision headline");
+  assert.equal(
+    body.recoveryPlan.items[0].decisionHeadline,
+    body.recoveryCase.decisionRationale.headline
+  );
+
   const { AuditLog } = ctx.models;
+  assert.ok(await AuditLog.exists({ caseId: body.recoveryCase._id, eventType: "DECISION_EXPLAINED" }));
   assert.ok(await AuditLog.exists({ caseId: body.recoveryCase._id, eventType: "RECOVERY_PLAN_CREATED" }));
   assert.ok(!(await AuditLog.exists({ caseId: body.recoveryCase._id, eventType: "RECOVERY_EXECUTED" })));
 

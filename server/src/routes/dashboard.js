@@ -86,6 +86,9 @@ dashboardRouter.get("/summary", async (req, res, next) => {
     );
 
     res.status(200).json({
+      // Drives whether the client shows the DEMO/TEST controls (Simulate Payment Failure). A
+      // real merchant never sees them — their failures arrive only via the Razorpay webhook.
+      isDemoMerchant: Boolean(req.merchant.isDemo),
       revenueAtRisk: riskAgg[0]?.totalAmount || 0,
       totalCases: riskAgg[0]?.count || 0,
       recoveredRevenue: recoveredAgg[0]?.totalRecovered || 0,
@@ -195,6 +198,8 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
     }
 
     res.status(200).json({
+      // See /summary — gates the client's DEMO/TEST controls (e.g. "Complete test payment").
+      isDemoMerchant: Boolean(req.merchant.isDemo),
       totalClients,
       paymentsPassed,
       paymentsFailed,

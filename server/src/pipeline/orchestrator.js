@@ -18,6 +18,22 @@ import { evaluateEligibility } from "./eligibilityEngine.js";
 import { calculateRecoveryScore } from "./scoringEngine.js";
 import { selectIntervention } from "./interventionSelector.js";
 import { evaluatePolicy } from "../policy/policyEngine.js";
+import { explainRecoveryDecision } from "./decisionRationale.js";
+
+// Attaches the plain-language decision rationale to the case and records it as an audit entry.
+// Purely descriptive — see pipeline/decisionRationale.js. Called at every point a pass reaches
+// a decided state (routed to a terminal by eligibility, or after the Policy Engine's gate).
+function explain(recoveryCase, policy, auditEntries) {
+  const rationale = explainRecoveryDecision({ recoveryCase, policy });
+  if (!rationale) return;
+  recoveryCase.decisionRationale = rationale;
+  auditEntries.push({
+    eventType: "DECISION_EXPLAINED",
+    reason: null,
+    result: rationale.headline,
+    metadata: { outcome: rationale.outcome, proposed: rationale.proposed },
+  });
+}
 
 /**
  * @param {{recoveryCase: object, policy: object, customer: object, payment: object|null, history: object, interventionOptions?: {voiceEnabled?: boolean}}} args
@@ -57,6 +73,7 @@ export function runEvaluationPipeline({ recoveryCase, policy, customer, payment,
   if (recoveryCase.status !== "ELIGIBLE") {
     // Eligibility routed the case straight to STOPPED/ESCALATED/EXPIRED — scoring and
     // intervention selection never run for a case whose fate is already decided.
+    explain(recoveryCase, policy, auditEntries);
     return { recoveryCase, auditEntries };
   }
 
@@ -93,6 +110,8 @@ export function runEvaluationPipeline({ recoveryCase, policy, customer, payment,
     result: recoveryCase.status,
     metadata: { candidateAction },
   });
+
+  explain(recoveryCase, policy, auditEntries);
 
   return { recoveryCase, auditEntries };
 }
@@ -145,6 +164,7 @@ export function runVoiceDecisionPipeline({ recoveryCase, policy, customer, payme
     if (recoveryCase.status !== "ELIGIBLE") {
       // Routed straight to STOPPED/ESCALATED/EXPIRED — the case's fate is already decided;
       // the voice-supplied candidateAction is never consulted.
+      explain(recoveryCase, policy, auditEntries);
       return { recoveryCase, auditEntries, policyResult: null };
     }
   }
@@ -171,6 +191,8 @@ export function runVoiceDecisionPipeline({ recoveryCase, policy, customer, payme
     result: recoveryCase.status,
     metadata: { candidateAction, source: "VOICE" },
   });
+
+  explain(recoveryCase, policy, auditEntries);
 
   return { recoveryCase, auditEntries, policyResult };
 }

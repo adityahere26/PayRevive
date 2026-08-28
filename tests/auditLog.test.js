@@ -152,7 +152,10 @@ test("GET /api/audit-log never leaks another merchant's events — merchant isol
   const caseIdA = await createAndEvaluateCase(tokenA);
 
   const merchantB = await Merchant.create({ email: "audit-merchant-b@test.payrevive.dev", name: "Merchant B" });
-  const tokenB = signMerchantToken({ merchantId: merchantB._id.toString(), isDemo: false }, { expiresIn: DEMO_TOKEN_TTL });
+  // isDemo:true only so this isolation test can still create B's case via the demo route
+  // (fenced to the demo merchant by requireDemoMerchant) — the isolation guarantee under test
+  // holds for any two distinct merchants regardless of the flag.
+  const tokenB = signMerchantToken({ merchantId: merchantB._id.toString(), isDemo: true }, { expiresIn: DEMO_TOKEN_TTL });
   const caseIdB = await createAndEvaluateCase(tokenB, { amount: 5000 });
 
   const resA = await authedFetch("/api/audit-log?limit=100", tokenA).then((r) => r.json());
