@@ -137,6 +137,39 @@ npm run client:dev
 Backend health check: **`GET http://localhost:4000/api/health`**
 Frontend: **`http://localhost:5173`** — click "Enter Demo" to exercise the real demo-auth flow.
 
+## Connecting a Razorpay account
+
+A business connects PayRevive to its own Razorpay account in three escalating levels of
+effort — the first needs no code:
+
+1. **Webhook (today).** In the dashboard, open **Integration**. It shows a per-merchant
+   webhook URL and a signing secret. Paste both into the Razorpay Dashboard
+   (Settings → Webhooks → Add New Webhook) and subscribe to `payment.failed`. Every failed
+   payment then arrives at `POST /api/webhooks/razorpay/inbound/:webhookId`, is
+   signature-verified against that secret, and flows into the same recovery pipeline the demo
+   "Simulate Payment Failure" control uses — a recovery plan is prepared and queued for the
+   merchant's one-click approval. Rotate the secret any time from the same page.
+   See `ARCHITECTURE.md` § Inbound payment-failure webhook.
+2. **Connect with Razorpay (roadmap).** One-click OAuth account connect — PayRevive registers
+   the webhook and reads failed payments on the merchant's behalf, no URLs or secrets to copy.
+   Shown as a disabled control on the Integration page; gated on Razorpay partner onboarding.
+3. **SDK (roadmap).** A thin server-side client for platforms that want to trigger recovery on
+   custom events or pass richer customer context than the Razorpay webhook carries:
+
+   ```js
+   import { PayRevive } from "@payrevive/sdk"; // illustrative — not published
+
+   const pr = new PayRevive({ apiKey: process.env.PAYREVIVE_API_KEY });
+
+   // in your own payment-failure handler:
+   await pr.reportFailedPayment({
+     customer: { name, email, phone },
+     payment: { id, amount, currency },
+     failureReason: "insufficient_funds",
+   });
+   // → recovery case opened, plan prepared, merchant notified to confirm
+   ```
+
 ## Tests
 
 ```bash

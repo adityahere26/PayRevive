@@ -2,9 +2,9 @@
 // revenue-risk event (currently: a payment failure — SPEC.md § Scenario A) into a
 // recovery_case candidate in RISK_DETECTED. Deliberately NOT inlined into a route handler
 // (CLAUDE.md § Revenue Risk Detector: "Do not put this logic directly inside Express route
-// handlers") so the real payment.failed path (future) and the demo trigger
-// (routes/demo.js) both call this exact function, per ARCHITECTURE.md's "one pipeline, two
-// triggers" pattern already established for checkout abandonment.
+// handlers"): a connected merchant's real Razorpay payment.failed webhook and the demo trigger
+// both reach it through services/paymentFailureIngest.js, per ARCHITECTURE.md's "one ingest,
+// three triggers" pattern (§ Inbound payment-failure webhook).
 
 import { RecoveryCase } from "../models/index.js";
 

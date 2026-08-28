@@ -14,6 +14,7 @@ const PRIMARY_NAV_ITEMS = [
 const SECONDARY_NAV_ITEMS = [
   { to: "/audit-trail", label: "Audit Trail" },
   { to: "/policy", label: "Merchant Policy" },
+  { to: "/integration", label: "Integration" },
 ];
 
 export default function Layout() {

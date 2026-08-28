@@ -118,6 +118,11 @@ export const api = {
   getMerchantPolicy: () => request("/merchant/policy"),
   updateMerchantPolicy: (policy) => request("/merchant/policy", { method: "PUT", body: policy }),
 
+  // ARCHITECTURE.md § Inbound payment-failure webhook. The webhook URL + signing secret a
+  // business pastes into their Razorpay Dashboard to connect PayRevive without writing code.
+  getIntegration: () => request("/merchant/integration"),
+  regenerateWebhookSecret: () => request("/merchant/integration/regenerate", { method: "POST" }),
+
   // AGENT_DESIGN.md § Voice pipeline. Every call here goes to the payrevive backend, never
   // directly to Gemini — the browser never sees any Gemini credential (SECURITY.md § Gemini /
   // AI provider security).

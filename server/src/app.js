@@ -19,6 +19,7 @@ import { dashboardRouter } from "./routes/dashboard.js";
 import { evaluationRouter } from "./routes/evaluation.js";
 import { auditLogRouter } from "./routes/auditLog.js";
 import { policyRouter } from "./routes/policy.js";
+import { integrationRouter } from "./routes/integration.js";
 import { webhooksRouter } from "./routes/webhooks.js";
 
 export function createApp() {
@@ -53,6 +54,7 @@ export function createApp() {
   app.use("/api/evaluation", evaluationRouter);
   app.use("/api/audit-log", auditLogRouter);
   app.use("/api/merchant/policy", policyRouter);
+  app.use("/api/merchant/integration", integrationRouter);
 
   app.use(notFound);
   app.use(errorHandler);

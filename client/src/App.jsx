@@ -10,6 +10,7 @@ import VoiceRecovery from "./pages/VoiceRecovery.jsx";
 import Evaluation from "./pages/Evaluation.jsx";
 import AuditTrail from "./pages/AuditTrail.jsx";
 import MerchantPolicy from "./pages/MerchantPolicy.jsx";
+import Integration from "./pages/Integration.jsx";
 import Landing from "./pages/marketing/Landing.jsx";
 import About from "./pages/marketing/About.jsx";
 import HowItWorks from "./pages/marketing/HowItWorks.jsx";
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/evaluation" element={<Evaluation />} />
           <Route path="/audit-trail" element={<AuditTrail />} />
           <Route path="/policy" element={<MerchantPolicy />} />
+          <Route path="/integration" element={<Integration />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

@@ -96,8 +96,11 @@ query against merchant-owned data is scoped by it — see `SECURITY.md` § Autho
 
 **merchants**
 `_id, name, email (unique), passwordHash, policy { maxRecoveryAttempts, maxVoiceAttempts,
-maxAutonomousAmount, recoveryWindowHours, escalationAmount, optOutBehavior, maxContactAttempts },
-isDemo, createdAt`
+maxAutonomousAmount, recoveryWindowHours, escalationAmount, optOutBehavior, maxContactAttempts,
+voiceEnabled }, integration { razorpay { webhookId, webhookSecret (select:false), provisionedAt,
+rotatedAt } }, isDemo, createdAt`
+Indexes: partial-unique on `integration.razorpay.webhookId` (string values only) — resolves an
+inbound `payment.failed` delivery to its merchant, see § Inbound payment-failure webhook.
 
 **customers**
 `_id, merchantId, name, email, phone, optedOut, createdAt`
@@ -219,7 +222,7 @@ above throws and is rejected, so an invalid state change can never silently occu
 
 ## API contract
 
-All routes except `/api/auth/*` and `/api/webhooks/razorpay` require a JWT bearer token, and every
+All routes except `/api/auth/*` and `/api/webhooks/*` require a JWT bearer token, and every
 resource route re-verifies `resource.merchantId === req.merchant.id` before returning data.
 
 | Method | Route | Notes |
@@ -245,7 +248,10 @@ resource route re-verifies `resource.merchantId === req.merchant.id` before retu
 | POST | `/api/evaluation/run` | rate-limited, likely admin/demo-only given cost/time |
 | GET | `/api/evaluation/:id` | evaluation run results |
 | GET | `/api/merchant/policy` / `PUT /api/merchant/policy` | read/update merchant policy config |
-| POST | `/api/webhooks/razorpay` | no auth (signature-verified instead); raw body required |
+| GET | `/api/merchant/integration` | the merchant's Razorpay webhook URL + signing secret (provisioned on first read); rate-limited — see § Inbound payment-failure webhook |
+| POST | `/api/merchant/integration/regenerate` | rotates the webhookId + signing secret; the old URL stops resolving immediately; rate-limited |
+| POST | `/api/webhooks/razorpay` | no auth (signature-verified instead); raw body required; platform route — `payment_link.*` outcome events only |
+| POST | `/api/webhooks/razorpay/inbound/:webhookId` | no auth (per-merchant signing secret verified instead); raw body required; a connected merchant's `payment.failed` deliveries — see § Inbound payment-failure webhook |
 
 Error responses are uniform:
 ```json
@@ -356,6 +362,50 @@ both call it, so there is exactly one Razorpay-executing code path, never a voic
   against a local dev server requires a public HTTPS tunnel (e.g. ngrok) with that URL registered
   as the webhook endpoint in the Razorpay Dashboard (Test Mode).
 - **Orders API:** not used — Payment Links proved sufficient for this build's flow.
+
+## Inbound payment-failure webhook (connected merchants)
+
+The code-free way a real business connects PayRevive. Rather than writing an integration, a
+merchant pastes a **per-merchant webhook URL + signing secret** into their Razorpay Dashboard
+(Settings → Webhooks) and subscribes it to `payment.failed`. From then on, every failed payment
+on their account flows into the exact same recovery pipeline the demo "Simulate Payment Failure"
+control uses.
+
+- **One ingest, three triggers.** `payment.failed` handling is not a new pipeline. The demo
+  route (`routes/demo.js`, `source: "DEMO_SIMULATION"`), this inbound webhook
+  (`source: "RAZORPAY_WEBHOOK"`), and the future checkout-abandonment sweep all call one shared
+  function — `services/paymentFailureIngest.js`'s `ingestPaymentFailure()` — which does the
+  Customer upsert, the failed `Payment`, `detectPaymentFailureRisk` (module 1), the
+  `REVENUE_RISK_DETECTED` audit, and (when `RECOVERY_AUTOPLAN_ENABLED`) `planRecoveryForCase`.
+  The `source` is recorded in the `REVENUE_RISK_DETECTED` audit metadata; nothing else differs.
+- **Credential.** `models/Merchant.js` `integration.razorpay` holds `webhookId` (public, in the
+  URL) and `webhookSecret` (`select: false`; a symmetric HMAC-SHA256 key, so stored as-is, not
+  hashed — verification must recompute the same digest Razorpay sent). Issued lazily on the
+  first `GET /api/merchant/integration` and rotatable via
+  `POST /api/merchant/integration/regenerate` (which also invalidates the old URL — the route
+  resolves the merchant by `webhookId`). A partial unique index on
+  `integration.razorpay.webhookId` (filtered to string values, since unconnected merchants carry
+  a `null`) enforces global uniqueness.
+- **Route.** `POST /api/webhooks/razorpay/inbound/:webhookId` (`routes/webhooks.js`), on the
+  same router as the platform route and therefore also mounted **before** `express.json()` with
+  its own `express.raw()`. It reuses the platform primitives verbatim: `verifyRazorpaySignature`
+  and the `webhook_events` unique-`eventId` idempotency guard. Merchant identity comes solely
+  from the `:webhookId` in the path — never from the payload (`CLAUDE.md` core principle #3).
+  Flow: resolve merchant (unknown id → `404`, unattributable, logged not audited) → verify
+  signature (fail → `400` + `RAZORPAY_WEBHOOK_REJECTED` audit, merchant now known) → dedup
+  `eventId` → non-`payment.failed` → `200 IGNORED` → else map the untrusted
+  `payment.entity` (amount from paise, `email`/`contact`, `error_description`) and call
+  `ingestPaymentFailure`. Processing errors ack `200` with a `FAILED` `webhook_events` row,
+  same as the platform route (never trigger Razorpay's 24h retry storm on an unfixable error).
+- **Boundary (this build).** The inbound route handles `payment.failed` only. `payment_link.*`
+  outcome events for a connected merchant's recovery links still land on the untouched platform
+  `POST /api/webhooks/razorpay` route; unifying them onto the per-merchant endpoint is a later
+  addition. The platform route, `verifyRazorpaySignature`, and the demo test-payment helper are
+  unchanged.
+- **"Connect with Razorpay" (roadmap).** A one-click OAuth account connect — PayRevive would
+  register the webhook and read failed payments on the merchant's behalf — is the intended
+  productised path but is Razorpay-partner-program gated; the dashboard shows it as a disabled,
+  labelled control.
 
 ## Deployment topology
 
