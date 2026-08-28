@@ -28,3 +28,19 @@ export function verifyRazorpaySignature(rawBody, signatureHeader, secret) {
   if (expectedBuf.length !== providedBuf.length) return false;
   return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
+
+/**
+ * The inverse of verifyRazorpaySignature — computes the header value Razorpay would send for a
+ * given raw body. Used ONLY by the DEV/DEMO test-payment helper (server/src/services/
+ * demoTestPayment.js), which acts as Razorpay's servers would after a Test Mode payment: it
+ * builds a payment_link.paid event, signs it here, and delivers it to the real
+ * /api/webhooks/razorpay route so signature verification, cross-checks and idempotency all
+ * still run. Never used to bypass verification.
+ *
+ * @param {Buffer|string} rawBody
+ * @param {string} secret RAZORPAY_WEBHOOK_SECRET
+ * @returns {string} hex HMAC-SHA256
+ */
+export function signRazorpayWebhookBody(rawBody, secret) {
+  return crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+}

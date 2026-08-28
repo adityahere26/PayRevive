@@ -12,6 +12,8 @@ import { NotFoundError } from "../lib/errors.js";
 import { Merchant, Customer, Payment } from "../models/index.js";
 import { detectPaymentFailureRisk } from "../pipeline/riskDetector.js";
 import { planRecoveryForCase, serializePlan } from "../pipeline/recoveryPlan.js";
+import { seedDemoDataset } from "../services/demoSeed.js";
+import { completeDemoTestPayments } from "../services/demoTestPayment.js";
 import { writeAuditLog } from "../audit/auditLogger.js";
 import { env } from "../config/env.js";
 
@@ -129,3 +131,35 @@ demoRouter.post(
     }
   }
 );
+
+// POST /api/demo/seed — DEMO/TEST ONLY. Resets the authenticated merchant's data and re-seeds
+// the deterministic Buildathon scenario (100 clients / 90 passed / 10 failed), running the 10
+// failed payments through the real recovery pipeline. Merchant-scoped: only the caller's own
+// data is reset (see server/src/services/demoSeed.js). Same job as `npm run seed:demo`, over HTTP.
+demoRouter.post("/seed", requireAuth, paymentFailureRateLimiter, async (req, res, next) => {
+  try {
+    const summary = await seedDemoDataset({ merchantId: req.merchant.id });
+    res.status(201).json(summary);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/demo/complete-test-payment — DEMO/TEST ONLY. Simulates a customer completing the
+// Razorpay Test Mode payment for a case (or all of the merchant's cases) awaiting an outcome:
+// it signs a payment_link.paid event and delivers it to the REAL webhook route. The webhook's
+// signature verification, cross-checks, idempotency and outcome logic all run unchanged — this
+// is not a "mark as paid" shortcut and it never mutates a RecoveryCase directly (see
+// server/src/services/demoTestPayment.js). Body: optional { caseId }.
+demoRouter.post("/complete-test-payment", requireAuth, paymentFailureRateLimiter, async (req, res, next) => {
+  try {
+    const caseId = typeof req.body?.caseId === "string" ? req.body.caseId : null;
+    const hostPort = Number((req.get("host") || "").split(":")[1]);
+    const localPort = req.socket?.localPort || (Number.isFinite(hostPort) ? hostPort : env.PORT);
+    const selfBase = `http://127.0.0.1:${localPort}`;
+    const result = await completeDemoTestPayments({ merchantId: req.merchant.id, caseId, selfBase });
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});

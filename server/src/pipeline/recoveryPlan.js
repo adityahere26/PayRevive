@@ -331,6 +331,21 @@ async function executePlanItem({ item, plan, merchant }) {
     return;
   }
 
+  // Case-scoped record that THIS case's customer-facing action was authorised by the single
+  // merchant confirmation — so the recovery-case audit trail reads
+  // PLAN_CREATED → PLAN_APPROVED → LINK_CREATED → RECOVERY_EXECUTED → WEBHOOK_VERIFIED →
+  // RECOVERY_SUCCEEDED. (confirmRecoveryPlan also writes one plan-scoped RECOVERY_PLAN_APPROVED
+  // for the merchant-wide audit log.)
+  await writeAuditLog({
+    merchantId,
+    caseId: recoveryCase._id,
+    actor: "MERCHANT",
+    eventType: "RECOVERY_PLAN_APPROVED",
+    reason: item.intervention,
+    result: recoveryCase.status,
+    metadata: { planId: plan._id },
+  });
+
   if (item.intervention === "CREATE_PAYMENT_LINK") {
     await executePaymentLinkItem({ item, plan, recoveryCase, customer, merchantId });
   } else if (item.intervention === "START_VOICE_RECOVERY") {

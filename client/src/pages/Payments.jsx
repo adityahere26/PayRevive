@@ -168,11 +168,13 @@ const PLAN_TERMINAL = ["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"];
 // merchant makes ONE decision. This panel shows the prepared plan, takes the single
 // confirmation, then shows execution progress. It never implies customer contact has already
 // happened.
-function RecoveryPlanPanel({ plan, onConfirmed }) {
+function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, onConfirmed }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [localPlan, setLocalPlan] = useState(null);
+  const [completing, setCompleting] = useState(false);
+  const [completeErr, setCompleteErr] = useState(null);
 
   const effective = localPlan || plan;
   if (!effective) {
@@ -215,6 +217,19 @@ function RecoveryPlanPanel({ plan, onConfirmed }) {
       setErr(e.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function completeTestPayments() {
+    setCompleting(true);
+    setCompleteErr(null);
+    try {
+      await api.completeTestPayment();
+      onConfirmed?.();
+    } catch (e) {
+      setCompleteErr(e.message);
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -291,30 +306,73 @@ function RecoveryPlanPanel({ plan, onConfirmed }) {
 
       {/* Execution progress */}
       {(executing || done) && (
-        <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
-          {links.length > 0 && (
-            <div className="rounded-xl bg-slate-50/80 px-3 py-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Payment Links</div>
-              <div className="text-sm font-semibold text-brand-900">
-                {linkDone} / {links.length} completed
+        <>
+          <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
+            {links.length > 0 && (
+              <div className="rounded-xl bg-slate-50/80 px-3 py-2">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Payment Links</div>
+                <div className="text-sm font-semibold text-brand-900">
+                  {linkDone} / {links.length} created (Test Mode)
+                </div>
               </div>
-            </div>
-          )}
-          {voices.length > 0 && (
-            <div className="rounded-xl bg-slate-50/80 px-3 py-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Voice Recovery</div>
-              <div className="text-sm font-semibold text-brand-900">
-                {voiceDone} / {voices.length} started
+            )}
+            {voices.length > 0 && (
+              <div className="rounded-xl bg-slate-50/80 px-3 py-2">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Voice Recovery</div>
+                <div className="text-sm font-semibold text-brand-900">
+                  {voiceDone} / {voices.length} started
+                </div>
               </div>
+            )}
+            {escalations.length > 0 && (
+              <div className="rounded-xl bg-amber-50 px-3 py-2">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-amber-600">Escalation</div>
+                <div className="text-sm font-semibold text-amber-800">{escalations.length} requires review</div>
+              </div>
+            )}
+          </div>
+
+          {(awaitingOutcome > 0 || recovered > 0) && (
+            <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
+              <span>
+                <span className="font-bold tabular-nums text-cyan-700">{awaitingOutcome}</span>{" "}
+                <span className="text-slate-500">awaiting payment outcome</span>
+              </span>
+              <span>
+                <span className="font-bold tabular-nums text-emerald-700">{recovered}</span>{" "}
+                <span className="text-slate-500">recovered (verified)</span>
+              </span>
             </div>
           )}
-          {escalations.length > 0 && (
-            <div className="rounded-xl bg-amber-50 px-3 py-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-amber-600">Escalation</div>
-              <div className="text-sm font-semibold text-amber-800">{escalations.length} requires review</div>
+
+          {/* DEMO control — completes the Test Mode payment for links awaiting an outcome by
+              delivering a signed webhook to the real webhook route. Not a "mark as paid" shortcut. */}
+          {awaitingOutcome > 0 && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={completeTestPayments}
+                  disabled={completing}
+                  className={buttonClasses({ variant: "secondary", size: "sm" })}
+                >
+                  {completing
+                    ? "Completing…"
+                    : `Complete ${awaitingOutcome} test payment${awaitingOutcome === 1 ? "" : "s"}`}
+                </button>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  Demo control
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-400">
+                Simulates the customer paying the Razorpay Test Mode link — delivers a signed{" "}
+                <code>payment_link.paid</code> webhook to the real webhook route (signature verified,
+                idempotent). Only a verified outcome credits recovered revenue.
+              </p>
+              {completeErr && <p className="mt-1 text-xs text-red-600">{completeErr}</p>}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -812,7 +870,12 @@ export default function Payments() {
 
       <OverviewHero overview={overview} loading={!overview && !error} error={error} onRetry={load} />
 
-      <RecoveryPlanPanel plan={overview?.recoveryPlan} onConfirmed={load} />
+      <RecoveryPlanPanel
+        plan={overview?.recoveryPlan}
+        awaitingOutcome={overview?.recoverySummary?.awaitingOutcome || 0}
+        recovered={overview?.recoverySummary?.recovered || 0}
+        onConfirmed={load}
+      />
 
       <div className="relative overflow-hidden rounded-3xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-4">

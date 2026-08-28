@@ -40,7 +40,11 @@ auditLogRouter.get("/", async (req, res, next) => {
 
     const [events, total, eventTypes] = await Promise.all([
       AuditLog.find(filter)
-        .sort({ timestamp: -1 })
+        // `_id` as a tiebreaker: many events in one pipeline run share the same millisecond
+        // `timestamp`, and Mongo's sort is not stable for equal keys — without a unique
+        // secondary key, `?limit=100` and paged `?limit=N` queries could order those events
+        // differently and appear to overlap/gap.
+        .sort({ timestamp: -1, _id: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
       AuditLog.countDocuments(filter),

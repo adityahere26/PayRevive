@@ -16,14 +16,21 @@ import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
 // eventual judge demo because it makes every money action explainable." Shows the case's
 // current decision state plus the full audit trail rendered as a timeline.
 
+// The approval-gated recovery chain (ARCHITECTURE.md § Recovery plans). Steps that haven't
+// happened yet render as "Pending" — e.g. everything from "Recovery Plan Confirmed" onward
+// stays pending until the merchant confirms the plan, and the last two until a verified
+// Razorpay Test Mode webhook arrives. ACTION_SIMULATED is the equivalent for the no-Razorpay
+// simulated path.
 const TIMELINE_STEPS = [
-  { eventType: "REVENUE_RISK_DETECTED", label: "Revenue Risk Detected" },
+  { eventType: "REVENUE_RISK_DETECTED", label: "Payment Failed — Revenue Risk Detected" },
   { eventType: "ROOT_CAUSE_IDENTIFIED", label: "Root Cause Identified" },
   { eventType: "ELIGIBILITY_EVALUATED", label: "Eligibility Checked" },
-  { eventType: "RECOVERY_SCORED", label: "Recovery Scored" },
-  { eventType: "INTERVENTION_SELECTED", label: "Intervention Selected" },
-  { eventType: "POLICY_EVALUATED", label: "Policy Evaluated" },
-  { eventType: "ACTION_SIMULATED", label: "Action Simulated" },
+  { eventType: "POLICY_EVALUATED", label: "Policy Decision" },
+  { eventType: "RECOVERY_PLAN_CREATED", label: "Recovery Plan Created" },
+  { eventTypes: ["RECOVERY_PLAN_APPROVED"], label: "Recovery Plan Confirmed by Merchant" },
+  { eventTypes: ["PAYMENT_LINK_CREATED", "ACTION_SIMULATED"], label: "Recovery Action Executed" },
+  { eventType: "RAZORPAY_WEBHOOK_VERIFIED", label: "Payment Outcome Verified" },
+  { eventTypes: ["PAYMENT_RECOVERY_SUCCEEDED"], label: "Payment Recovery Succeeded" },
 ];
 
 export default function RecoveryCaseDetail() {
@@ -123,6 +130,11 @@ export default function RecoveryCaseDetail() {
   const isRazorpayRecovery = Boolean(recoveryCase.razorpayPaymentLinkId);
 
   const completedEventTypes = new Set(auditLog.map((e) => e.eventType));
+  const recoveredEntry =
+    recoveryCase.status === "RECOVERED"
+      ? auditLog.find((e) => e.eventType === "PAYMENT_RECOVERY_SUCCEEDED") ||
+        auditLog.find((e) => e.eventType === "ACTION_SIMULATED")
+      : null;
 
   return (
     <div className="space-y-6">
@@ -219,6 +231,9 @@ export default function RecoveryCaseDetail() {
             />
             <Field label="Attempts" value={`${recoveryCase.attempts}`} />
             <Field label="Recovered Amount" value={formatINR(recoveryCase.recoveredAmount)} />
+            {recoveredEntry && (
+              <Field label="Recovered On" value={new Date(recoveredEntry.timestamp).toLocaleString()} />
+            )}
           </dl>
           {recoveryCase.reasonCodes?.length > 0 && (
             <div className="mt-6 border-t border-brand-900/8 pt-5">
@@ -292,11 +307,12 @@ export default function RecoveryCaseDetail() {
         <Card title="The Decision Trail">
           <ol className="relative">
             {TIMELINE_STEPS.map((step, idx) => {
-              const entry = auditLog.find((e) => e.eventType === step.eventType);
-              const done = completedEventTypes.has(step.eventType);
+              const keys = step.eventTypes || [step.eventType];
+              const entry = auditLog.find((e) => keys.includes(e.eventType));
+              const done = keys.some((k) => completedEventTypes.has(k));
               const isLast = idx === TIMELINE_STEPS.length - 1;
               return (
-                <li key={step.eventType} className="relative flex gap-5 pb-8 last:pb-0">
+                <li key={step.label} className="relative flex gap-5 pb-8 last:pb-0">
                   {!isLast && (
                     <div
                       className={`absolute left-[15px] top-8 h-full w-px ${done ? "bg-emerald-200" : "bg-brand-900/8"}`}

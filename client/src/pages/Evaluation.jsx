@@ -104,7 +104,9 @@ export default function Evaluation() {
           <>
             Runs PayRevive's real recovery pipeline — root cause, scoring, policy, and execution — against a
             seeded batch of synthetic cases. It runs entirely in-memory: no real Razorpay Test Mode payments,
-            no external service calls, and never presented as actual merchant revenue.
+            no external service calls, and never presented as actual merchant revenue. This is the{" "}
+            <strong>synthetic batch evaluation</strong> — for the live demo merchant's actual measured
+            recovered revenue, see the <strong>Dashboard</strong>.
           </>
         }
       />

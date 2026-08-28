@@ -95,6 +95,11 @@ export const api = {
   getRecoveryPlan: (id) => request(`/recovery-plan/${id}`),
   confirmRecoveryPlan: (id) => request(`/recovery-plan/${id}/confirm`, { method: "POST" }),
 
+  // DEMO control: completes the Razorpay Test Mode payment for cases awaiting an outcome by
+  // delivering a signed payment_link.paid webhook to the real webhook route (no bypass).
+  completeTestPayment: (caseId) =>
+    request("/demo/complete-test-payment", { method: "POST", body: caseId ? { caseId } : {} }),
+
   // EVALUATION.md § Batch evaluation engine — synthetic data only, never a real Razorpay/
   // Gemini call. See server/src/routes/evaluation.js.
   runEvaluation: (count) => request("/evaluation/run", { method: "POST", body: count ? { count } : {} }),
