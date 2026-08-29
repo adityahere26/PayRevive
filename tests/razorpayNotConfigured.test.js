@@ -102,13 +102,13 @@ test("regression: a voice turn's CREATE_PAYMENT_LINK path (when it would apply) 
     method: "POST",
   }).then((r) => r.json());
 
-  // No live GEMINI_API_KEY in the test environment -> classifyVoiceIntent falls back to
-  // UNCLEAR, so this exercises the same safe-fallback path as tests/voiceRecovery.test.js;
+  // No live GEMINI_API_KEY, and an intentionally ambiguous transcript -> the deterministic
+  // keyword fallback also can't classify it, so it stays UNCLEAR with no candidate action;
   // asserting here specifically that isRazorpayConfigured() never enters the picture when
   // there's no candidate action at all.
   const res = await authedFetch(`/api/recovery-cases/${created.recoveryCase._id}/voice/turn`, token, {
     method: "POST",
-    body: JSON.stringify({ sessionId: session.sessionId, transcript: "Ek baar phir try karwa do" }),
+    body: JSON.stringify({ sessionId: session.sessionId, transcript: "haan theek hai bhai" }),
   });
   assert.equal(res.status, 200);
   const body = await res.json();

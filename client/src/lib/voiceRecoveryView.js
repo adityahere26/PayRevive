@@ -134,7 +134,7 @@ export function deriveVoiceRecoveryView({ recoveryCase, policy, plan } = {}) {
       showStartButton: true,
       headline: "Ready to start",
       message:
-        "This case hasn't been analysed into a recovery plan yet. You can start a manual voice session as an override.",
+        "Start a voice session and reply — PayRevive will analyse this case from the conversation.",
     };
   }
 

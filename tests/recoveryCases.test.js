@@ -205,12 +205,18 @@ test("I: re-evaluating a case that hasn't changed does not flip its already-deci
     body: JSON.stringify(paymentFailurePayload({ failureReason: "insufficient_funds" })),
   }).then((r) => r.json());
 
-  const first = await authedFetch(`/api/recovery-cases/${created.recoveryCase._id}/evaluate`, token, {
+  const firstRes = await authedFetch(`/api/recovery-cases/${created.recoveryCase._id}/evaluate`, token, {
     method: "POST",
-  }).then((r) => r.json());
-  const second = await authedFetch(`/api/recovery-cases/${created.recoveryCase._id}/evaluate`, token, {
+  });
+  const secondRes = await authedFetch(`/api/recovery-cases/${created.recoveryCase._id}/evaluate`, token, {
     method: "POST",
-  }).then((r) => r.json());
+  });
+  // Repeat evaluation is a clean idempotent 200 — never a 4xx rejection or a 5xx (the client's
+  // "Something went wrong" path keys off a 5xx/transport failure, never off a normal repeat).
+  assert.equal(firstRes.status, 200);
+  assert.equal(secondRes.status, 200);
+  const first = await firstRes.json();
+  const second = await secondRes.json();
 
   assert.equal(first.recoveryCase.selectedIntervention, "CREATE_PAYMENT_LINK");
   assert.equal(first.recoveryCase.status, second.recoveryCase.status);

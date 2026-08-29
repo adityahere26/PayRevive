@@ -236,7 +236,7 @@ export default function VoiceRecovery() {
         // reach it (a "network" error before any PayRevive request is even made). This is a
         // Web Speech API environment limit, not a recovery failure — the text box below runs
         // the exact same voice pipeline, so recovery is unaffected.
-        setMicError("Speech recognition isn't available in this browser/network right now. Type your response below — it goes through the exact same recovery pipeline.");
+        setMicError("Speech recognition isn't available in this browser/network right now. Type your response below — it uses the same recovery pipeline.");
       } else {
         setMicError("Speech recognition stopped unexpectedly. You can type your response below instead.");
       }
@@ -511,7 +511,9 @@ export default function VoiceRecovery() {
         <RevealOnScroll delay={160} className="space-y-4" as="div">
           <Card title="Recovery Recommendation">
             {!lastTurn && !recoveryCase.selectedIntervention && recoveryCase.recoveryProbability == null && (
-              <p className="text-xs text-brand-400">PayRevive hasn't analysed this case into a recommendation yet.</p>
+              <p className="text-xs text-brand-400">
+                PayRevive will analyse this case from your voice conversation — start a session and reply below.
+              </p>
             )}
             {!lastTurn && (recoveryCase.selectedIntervention || recoveryCase.recoveryProbability != null) && (
               <dl className="space-y-4">
@@ -535,7 +537,9 @@ export default function VoiceRecovery() {
                   value={lastTurn.aiIntent?.confidence != null ? `${Math.round(lastTurn.aiIntent.confidence * 100)}%` : null}
                 />
                 {lastTurn.aiIntent?.fallback && (
-                  <p className="text-xs text-amber-600">The voice service was briefly unavailable — a safe deterministic fallback was used.</p>
+                  <p className="text-xs text-amber-600">
+                    The AI voice model wasn't available for this turn — a safe deterministic classifier was used instead.
+                  </p>
                 )}
               </dl>
             )}
@@ -543,7 +547,7 @@ export default function VoiceRecovery() {
 
           <Card title="Policy Decision">
             {!lastTurn && !recoveryCase.policyDecision && (
-              <p className="text-xs text-brand-400">Not evaluated yet.</p>
+              <p className="text-xs text-brand-400">The policy engine runs once you reply in a voice session.</p>
             )}
             {!lastTurn && recoveryCase.policyDecision && (
               <dl className="space-y-4">

@@ -1,8 +1,11 @@
 // AGENT_DESIGN.md § The ten modules, module 8 — Voice Intent Classifier, the AI Decision/
 // Planner for the voice channel. Classifies a Hinglish (or any) transcript into one of
 // VOICE_INTENTS. Like gemini/planner.js, this NEVER throws — any failure (missing key,
-// timeout, malformed JSON, schema violation) resolves to SAFE_FALLBACK_VOICE_INTENT (UNCLEAR),
-// which routes/voice.js treats as "ask the customer to repeat," never as an approval.
+// timeout, malformed JSON, schema violation) hands off to the deterministic keyword fallback
+// (pipeline/deterministicVoiceIntent.js): an unambiguous phrase still resolves to a real
+// intent, and anything else stays UNCLEAR, which routes/voice.js treats as "ask the customer
+// to repeat," never as an approval. Either way the intent still passes through
+// voiceIntentMapper.js and the shared Policy Engine before anything executes.
 //
 // `recommendedAction` in the returned object is the model's own advisory guess and is stored
 // for audit/explainability only — it is never used as the candidateAction fed to the Policy
@@ -10,8 +13,9 @@
 // from `intent` alone, per RECOVERY_POLICY.md § Voice intent -> outcome mapping.
 
 import Ajv from "ajv";
-import { AI_RECOMMENDED_ACTIONS, SAFE_FALLBACK_VOICE_INTENT, VOICE_INTENTS, VOICE_INTENT_SCHEMA } from "../schema.js";
+import { AI_RECOMMENDED_ACTIONS, VOICE_INTENTS, VOICE_INTENT_SCHEMA } from "../schema.js";
 import { generateStructuredContent } from "./client.js";
+import { deterministicVoiceIntent } from "../../pipeline/deterministicVoiceIntent.js";
 import { logger } from "../../lib/logger.js";
 
 const ajv = new Ajv({ allErrors: true });
@@ -64,23 +68,23 @@ export async function classifyVoiceIntent(context, { generate = generateStructur
       responseSchema: VOICE_INTENT_SCHEMA,
     });
   } catch (err) {
-    logger.warn("Gemini voice classification call failed — falling back to UNCLEAR", { error: err.message });
-    return { ...SAFE_FALLBACK_VOICE_INTENT, fallback: true };
+    logger.warn("Gemini voice classification call failed — using deterministic fallback", { error: err.message });
+    return deterministicVoiceIntent(context.transcript);
   }
 
   let parsed;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    logger.warn("Gemini voice classification returned non-JSON output — falling back to UNCLEAR");
-    return { ...SAFE_FALLBACK_VOICE_INTENT, fallback: true };
+    logger.warn("Gemini voice classification returned non-JSON output — using deterministic fallback");
+    return deterministicVoiceIntent(context.transcript);
   }
 
   if (!validateVoiceIntent(parsed)) {
-    logger.warn("Gemini voice classification failed schema validation — falling back to UNCLEAR", {
+    logger.warn("Gemini voice classification failed schema validation — using deterministic fallback", {
       errors: validateVoiceIntent.errors?.map((e) => ({ path: e.instancePath, message: e.message })),
     });
-    return { ...SAFE_FALLBACK_VOICE_INTENT, fallback: true };
+    return deterministicVoiceIntent(context.transcript);
   }
 
   // Constructed field-by-field, never `...parsed` — same defense-in-depth as gemini/planner.js.

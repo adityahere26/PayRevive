@@ -138,6 +138,14 @@ export default function RecoveryCaseDetail() {
   const isRazorpayRecovery = Boolean(recoveryCase.razorpayPaymentLinkId);
 
   const completedEventTypes = new Set(auditLog.map((e) => e.eventType));
+  // The Decision Trail is monotonic: if any step's audit event has fired, every step before it
+  // is complete too — even one whose own event isn't present (e.g. a manual voice-override
+  // turn that jumps a case straight to an executed action). Without this, an earlier row can
+  // render "Pending" below an already-executed later row, which reads as a bug.
+  const lastReachedStepIdx = TIMELINE_STEPS.reduce((acc, step, i) => {
+    const keys = step.eventTypes || [step.eventType];
+    return keys.some((k) => completedEventTypes.has(k)) ? i : acc;
+  }, -1);
   const recoveredEntry =
     recoveryCase.status === "RECOVERED"
       ? auditLog.find((e) => e.eventType === "PAYMENT_RECOVERY_SUCCEEDED") ||
@@ -359,7 +367,7 @@ export default function RecoveryCaseDetail() {
             {TIMELINE_STEPS.map((step, idx) => {
               const keys = step.eventTypes || [step.eventType];
               const entry = auditLog.find((e) => keys.includes(e.eventType));
-              const done = keys.some((k) => completedEventTypes.has(k));
+              const done = idx <= lastReachedStepIdx;
               const isLast = idx === TIMELINE_STEPS.length - 1;
               return (
                 <li key={step.label} className="relative flex gap-5 pb-8 last:pb-0">
@@ -387,7 +395,7 @@ export default function RecoveryCaseDetail() {
                         <span className="ml-1.5 text-brand-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
                       </div>
                     ) : (
-                      <div className="mt-1 text-xs text-brand-300">Pending</div>
+                      <div className="mt-1 text-xs text-brand-300">{done ? "Done" : "Pending"}</div>
                     )}
                   </div>
                 </li>

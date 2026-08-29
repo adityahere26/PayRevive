@@ -178,15 +178,18 @@ test("6/7/9: with no GEMINI_API_KEY configured, a voice turn fails safe (UNCLEAR
     method: "POST",
   }).then((r) => r.json());
 
+  // A genuinely ambiguous transcript: no live Gemini key -> classifyVoiceIntent hands off to
+  // the deterministic keyword fallback, which finds nothing to match and stays UNCLEAR. That
+  // never reaches the Eligibility/Policy Engine and never executes anything. (A *clear*
+  // supported phrase does get classified by the fallback — see
+  // tests/voiceDeterministicFallback.test.js.)
   const res = await authedFetch(`/api/recovery-cases/${recoveryCase._id}/voice/turn`, token, {
     method: "POST",
-    body: JSON.stringify({ sessionId: session.sessionId, transcript: "Ek baar phir try karwa do" }),
+    body: JSON.stringify({ sessionId: session.sessionId, transcript: "haan theek hai bhai" }),
   });
   assert.equal(res.status, 200);
   const body = await res.json();
 
-  // No live Gemini key in the test environment -> classifyVoiceIntent falls back to UNCLEAR,
-  // which never reaches the Eligibility/Policy Engine and never executes anything.
   assert.equal(body.aiIntent.intent, "UNCLEAR");
   assert.equal(body.aiIntent.fallback, true);
   assert.equal(body.candidateAction, null);

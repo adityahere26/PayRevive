@@ -271,3 +271,18 @@ test("7: audit explanation text is set to wrap / break, not overflow its contain
   assert.match(caseDetail, /max-w-\[22rem\] break-words px-6 py-2\.5 align-top text-brand-500">\{entry\.reason/);
   assert.match(caseDetail, /max-w-\[16rem\] break-words px-6 py-2\.5 align-top text-brand-500">\{entry\.result/);
 });
+
+test("8: RecoveryCaseDetail — Evaluate errors truthfully and the Decision Trail is monotonic", () => {
+  const src = readFileSync(fileURLToPath(new URL("../client/src/pages/RecoveryCaseDetail.jsx", import.meta.url)), "utf8");
+
+  // Evaluate: a 5xx / transport failure gets the "waking up" message, not the raw string;
+  // the case + trail are always re-synced afterwards (load() in finally).
+  assert.match(src, /err\.status >= 500 \|\| !err\.status/);
+  assert.match(src, /it may be waking up\. Please try again in a moment/);
+  assert.match(src, /finally \{\s*\n\s*setBusy\(false\);\s*\n\s*load\(\);/);
+
+  // Decision Trail: a step is "done" iff it or any later step has fired — never a lone
+  // "Pending" row rendered below an already-executed one.
+  assert.match(src, /const lastReachedStepIdx = TIMELINE_STEPS\.reduce/);
+  assert.match(src, /const done = idx <= lastReachedStepIdx;/);
+});
