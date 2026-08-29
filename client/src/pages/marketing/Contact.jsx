@@ -5,7 +5,7 @@ import { Alert } from "../../components/ui/Alert.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { ChevronDownIcon } from "../../components/ui/icons.jsx";
 
-const CONTACT_EMAIL = "team@payrevive.dev";
+const CONTACT_EMAIL = "royaditya2019@gmail.com";
 
 const FAQS = [
   {
