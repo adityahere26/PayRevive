@@ -79,21 +79,11 @@ export default function RecoveryCaseDetail() {
     }
   }
 
-  async function handleSimulateAction() {
-    setBusy(true);
-    setActionError(null);
-    try {
-      await api.simulateRecoveryAction(id);
-      load();
-    } catch (err) {
-      setActionError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Day 6 — real Razorpay Test Mode Payment Link, kept as a SEPARATE control from "Simulate
-  // Action" above so it's never ambiguous which one made a live external API call.
+  // Day 6 — real Razorpay Test Mode Payment Link. The no-Razorpay RNG-outcome demo control
+  // that used to sit beside it was removed from this judge-facing screen; the simulated
+  // executor it called (pipeline/actionExecutor.js, POST /:id/simulate-action) stays for
+  // tests and internal use. This is the only per-case action control and it is unambiguous
+  // about making a live external API call.
   async function handleCreatePaymentLink() {
     setPaymentLinkBusy(true);
     setPaymentLinkError(null);
@@ -313,16 +303,6 @@ export default function RecoveryCaseDetail() {
             <Button onClick={handleEvaluate} disabled={busy || !canEvaluate}>
               {busy ? "Working…" : "Evaluate"}
             </Button>
-            <button
-              type="button"
-              onClick={handleSimulateAction}
-              disabled={busy || !canSimulateAction}
-              title="No real Razorpay call — resolves the outcome with a seeded RNG"
-              className={buttonClasses({ variant: "secondary" })}
-            >
-              {busy ? "Working…" : "Simulate Action"}
-              <Badge tone="slate" size="sm">demo</Badge>
-            </button>
             {canSimulateAction && recoveryCase.selectedIntervention === "CREATE_PAYMENT_LINK" && (
               <button
                 type="button"

@@ -13,10 +13,11 @@ import {
 import { VOICE_INTENTS, SAFE_FALLBACK_VOICE_INTENT } from "../server/src/ai/schema.js";
 import { mapVoiceIntentToCandidateAction } from "../server/src/pipeline/voiceIntentMapper.js";
 
-test("clear payment-retry requests classify to PAY_NOW", () => {
+test("clear Hinglish payment-retry requests classify to PAY_NOW", () => {
   for (const t of [
     "Bhai payment fail ho gaya tha, ek baar phir try karwa do",
-    "dobara payment karwa do",
+    "bhai payment fail ho gaya tha dobara try karwa do",
+    "ek baar phir payment try karwa do",
     "abhi pay karna hai",
     "retry payment please",
     "phir se try karo",
@@ -25,9 +26,43 @@ test("clear payment-retry requests classify to PAY_NOW", () => {
   }
 });
 
-test("clear payment-link / method requests classify to PAYMENT_METHOD_PROBLEM", () => {
-  for (const t of ["Customer ko payment link bhej do", "mujhe link bhejo", "dusra card use karunga"]) {
+test("clear Devanagari payment-retry requests classify to PAY_NOW", () => {
+  for (const t of [
+    "भाई पेमेंट फेल हो गया था एक बार फिर ट्राई करवा दो",
+    "पेमेंट फेल हो गया, दोबारा पेमेंट करवा do",
+    "एक बार फिर पेमेंट ट्राई करवा दो",
+    "अभी पेमेंट करना है",
+  ]) {
+    assert.equal(classifyVoiceIntentByKeyword(t), "PAY_NOW", t);
+  }
+});
+
+test("clear Hinglish payment-link / method requests classify to PAYMENT_METHOD_PROBLEM", () => {
+  for (const t of [
+    "Customer ko payment link bhej do",
+    "mujhe link bhejo",
+    "dusre card se payment karni hai",
+    "dusra card use karunga",
+  ]) {
     assert.equal(classifyVoiceIntentByKeyword(t), "PAYMENT_METHOD_PROBLEM", t);
+  }
+});
+
+test("clear Devanagari payment-link / method requests classify to PAYMENT_METHOD_PROBLEM", () => {
+  for (const t of ["पेमेंट लिंक भेज दो", "दूसरे कार्ड से पेमेंट करना है"]) {
+    assert.equal(classifyVoiceIntentByKeyword(t), "PAYMENT_METHOD_PROBLEM", t);
+  }
+});
+
+test("negation wins over positive payment keywords, in both scripts", () => {
+  for (const t of [
+    "payment nahi karna",
+    "abhi payment nahi karna",
+    "पेमेंट नहीं करना है",
+    "अभी पेमेंट नहीं करना है",
+  ]) {
+    assert.equal(classifyVoiceIntentByKeyword(t), "REFUSE", t);
+    assert.notEqual(classifyVoiceIntentByKeyword(t), "PAY_NOW", t);
   }
 });
 
@@ -49,7 +84,17 @@ test("a negation is not misclassified as a pay request even though it contains '
 });
 
 test("genuinely ambiguous or unsupported transcripts stay unclassified (null)", () => {
-  for (const t of ["haan bhai", "hmm pata nahi", "kya haal hai", "mujhe pizza chahiye", "", "   ", null]) {
+  for (const t of [
+    "haan theek hai",
+    "okay",
+    "mujhe pizza chahiye",
+    "aaj mausam accha hai",
+    "hmm pata nahi",
+    "kya haal hai",
+    "",
+    "   ",
+    null,
+  ]) {
     assert.equal(classifyVoiceIntentByKeyword(t), null, JSON.stringify(t));
   }
 });

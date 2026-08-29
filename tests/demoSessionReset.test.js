@@ -285,4 +285,20 @@ test("8: RecoveryCaseDetail — Evaluate errors truthfully and the Decision Trai
   // "Pending" row rendered below an already-executed one.
   assert.match(src, /const lastReachedStepIdx = TIMELINE_STEPS\.reduce/);
   assert.match(src, /const done = idx <= lastReachedStepIdx;/);
+
+  // The judge-facing "Simulate Action" button is gone from this screen, along with its
+  // client handler — the merchant-facing controls (Evaluate, Create Payment Link, Start
+  // Voice Recovery) remain.
+  assert.doesNotMatch(src, /Simulate Action/);
+  assert.doesNotMatch(src, /handleSimulateAction/);
+  assert.match(src, /handleEvaluate/);
+  assert.match(src, /handleCreatePaymentLink/);
+  assert.match(src, /Start Voice Recovery/);
+});
+
+test("9: the simulated executor endpoint + client method are still present (removed only the button)", () => {
+  const route = readFileSync(fileURLToPath(new URL("../server/src/routes/recoveryCases.js", import.meta.url)), "utf8");
+  const apiClient = readFileSync(fileURLToPath(new URL("../client/src/api/client.js", import.meta.url)), "utf8");
+  assert.match(route, /"\/:id\/simulate-action"/);
+  assert.match(apiClient, /simulateRecoveryAction/);
 });

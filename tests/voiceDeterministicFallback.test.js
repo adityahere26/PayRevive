@@ -198,3 +198,93 @@ test("8: a clear PAY_NOW from an eligible customer is APPROVED by policy; with n
   if (body.action) assert.equal(body.action.status, "SIMULATED");
   assert.ok(["POLICY_APPROVED", "RECOVERED", "FAILED"].includes(body.recoveryCase.status));
 });
+
+// ---- 9-12. Devanagari transcripts flow through the exact same fallback + pipeline ---------
+
+test("9: a Devanagari retry request is classified PAY_NOW and advances the case", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { status, body } = await turn(
+    token,
+    rc._id,
+    session.sessionId,
+    "भाई पेमेंट फेल हो गया था एक बार फिर ट्राई करवा दो"
+  );
+
+  assert.equal(status, 200);
+  assert.equal(body.aiIntent.intent, "PAY_NOW");
+  assert.equal(body.candidateAction, "CREATE_PAYMENT_LINK");
+  assert.ok(body.policyResult);
+  assert.notEqual(body.recoveryCase.status, "RISK_DETECTED");
+  assert.ok(!/samajh nahi/i.test(body.response));
+});
+
+test("10: a Devanagari 'payment link bhej do' maps to the CREATE_PAYMENT_LINK candidate", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { body } = await turn(token, rc._id, session.sessionId, "पेमेंट लिंक भेज दो");
+
+  assert.ok(["PAYMENT_METHOD_PROBLEM", "PAY_NOW"].includes(body.aiIntent.intent));
+  assert.equal(body.candidateAction, "CREATE_PAYMENT_LINK");
+});
+
+test("11: 'दूसरे कार्ड से पेमेंट करना है' is PAYMENT_METHOD_PROBLEM, not a refusal or UNCLEAR", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { body } = await turn(token, rc._id, session.sessionId, "दूसरे कार्ड से पेमेंट करना है");
+
+  assert.equal(body.aiIntent.intent, "PAYMENT_METHOD_PROBLEM");
+  assert.equal(body.candidateAction, "CREATE_PAYMENT_LINK");
+});
+
+// ---- 12-13. negation wins — Latin and Devanagari — and REFUSE never executes anything -----
+
+// STOP/ESCALATE "execution" is just the terminal state transition (no customer contact, no
+// payment link, never a fabricated success) — that is the existing voice behaviour, unchanged.
+function assertNoCustomerFacingRecovery(body) {
+  assert.equal(body.paymentLink, null, "no payment link");
+  if (body.action) {
+    assert.notEqual(body.action.success, true, "never a fabricated success");
+    assert.ok(["STOP", "ESCALATE"].includes(body.action.action), "only the terminal STOP/ESCALATE transition");
+  }
+}
+
+test("12: 'abhi payment nahi karna' is REFUSE (not PAY_NOW) and the case is STOPPED — no customer-facing recovery", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { body } = await turn(token, rc._id, session.sessionId, "abhi payment nahi karna");
+
+  assert.equal(body.aiIntent.intent, "REFUSE");
+  assert.equal(body.candidateAction, "STOP");
+  assert.equal(body.recoveryCase.status, "STOPPED");
+  assertNoCustomerFacingRecovery(body);
+});
+
+test("13: 'अभी पेमेंट नहीं करना है' is REFUSE (not PAY_NOW) and the case is STOPPED — no customer-facing recovery", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { body } = await turn(token, rc._id, session.sessionId, "अभी पेमेंट नहीं करना है");
+
+  assert.equal(body.aiIntent.intent, "REFUSE");
+  assert.notEqual(body.aiIntent.intent, "PAY_NOW");
+  assert.equal(body.recoveryCase.status, "STOPPED");
+  assertNoCustomerFacingRecovery(body);
+});
+
+// ---- 14. a Devanagari ambiguous transcript still asks for clarification -------------------
+
+test("14: an ambiguous Devanagari-ish transcript stays UNCLEAR", async () => {
+  const { token } = await demoToken();
+  const rc = await newCase(token);
+  const session = await startSession(token, rc._id);
+  const { body } = await turn(token, rc._id, session.sessionId, "हाँ ठीक है भाई");
+
+  assert.equal(body.aiIntent.intent, "UNCLEAR");
+  assert.equal(body.candidateAction, null);
+  assert.equal(body.recoveryCase.status, "RISK_DETECTED");
+});
