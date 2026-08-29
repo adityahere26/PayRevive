@@ -63,11 +63,19 @@ export default function RecoveryCaseDetail() {
     setActionError(null);
     try {
       await api.evaluateRecoveryCase(id);
-      load();
     } catch (err) {
-      setActionError(err.message);
+      // /evaluate is idempotent server-side (re-evaluating a decided case is a no-op 200), so
+      // a failure here is a transport/transient problem — a generic 500 ("Something went
+      // wrong"), a cold-started backend, or a dropped connection — not a rejected decision.
+      // Say that plainly instead of forwarding the raw message.
+      setActionError(
+        err.status >= 500 || !err.status
+          ? "Couldn't reach the evaluation service just now — it may be waking up. Please try again in a moment."
+          : err.message
+      );
     } finally {
       setBusy(false);
+      load(); // always re-sync the case + Decision Trail to the server's current truth
     }
   }
 

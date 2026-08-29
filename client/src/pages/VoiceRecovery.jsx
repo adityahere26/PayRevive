@@ -231,8 +231,14 @@ export default function VoiceRecovery() {
         setMicError("Microphone access denied. Please allow microphone permissions, or type your response below.");
       } else if (event.error === "no-speech") {
         setMicError("No speech detected — please try again, or type your response below.");
+      } else if (event.error === "network" || event.error === "service-not-allowed" || event.error === "audio-capture") {
+        // Chrome's speech-to-text runs on a Google cloud service; some browsers/networks can't
+        // reach it (a "network" error before any PayRevive request is even made). This is a
+        // Web Speech API environment limit, not a recovery failure — the text box below runs
+        // the exact same voice pipeline, so recovery is unaffected.
+        setMicError("Speech recognition isn't available in this browser/network right now. Type your response below — it goes through the exact same recovery pipeline.");
       } else {
-        setMicError(`Voice input error (${event.error}). You can type your response below.`);
+        setMicError("Speech recognition stopped unexpectedly. You can type your response below instead.");
       }
       setUiState("READY");
     };

@@ -62,6 +62,11 @@ function loadEnv() {
     JWT_SECRET: process.env.JWT_SECRET,
     CLIENT_URL: process.env.CLIENT_URL,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || null,
+    // Optional override for the Gemini model id used by every AI Decision/Planner call
+    // (server/src/ai/gemini/client.js). Lets ops correct a retired/renamed model on the
+    // hosting platform without a code change — Gemini's 404 body names the current model to
+    // use. Falls back to a stable default in client.js when unset.
+    GEMINI_MODEL: process.env.GEMINI_MODEL || null,
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || null,
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || null,
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || null,

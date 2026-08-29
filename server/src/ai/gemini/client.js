@@ -11,12 +11,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../../config/env.js";
 
-// Verified live against the Gemini API during Day 5 development: gemini-2.5-flash (used at
-// the Day 4 migration) had since been retired for this account ("no longer available to new
-// users"). gemini-3.5-flash is the current flash-tier model as of this writing, confirmed
-// working for both plain and responseSchema-constrained generateContent calls. If this model
-// is retired in turn, Gemini's 404 response names its replacement directly — update here.
-const DEFAULT_MODEL = "gemini-3.5-flash";
+// Flash-tier model for every structured AI Decision/Planner call. Model ids change over time
+// and a wrong/retired id makes the Gemini API 404 EVERY call — which this project turns into a
+// silent SAFE_FALLBACK (planner -> ESCALATE, voice intent -> UNCLEAR), i.e. the pipeline stops
+// using the model without any obvious error. `gemini-2.5-flash` is the current stable GA
+// flash id with responseSchema + JSON output support. If it is unavailable for a given API
+// key, Gemini's 404 body names the id to use — set GEMINI_MODEL on the host to that value
+// (no redeploy needed) rather than editing this line.
+const DEFAULT_MODEL = env.GEMINI_MODEL || "gemini-2.5-flash";
 const DEFAULT_TIMEOUT_MS = 10000;
 
 let cachedClient = null;
