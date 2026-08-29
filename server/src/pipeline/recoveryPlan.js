@@ -42,10 +42,32 @@ const PRECEDENCE_OUTCOME_TO_STATUS = { STOP: "STOPPED", ESCALATE: "ESCALATED", E
  * Autonomously evaluates a freshly detected failed-payment case and records the decision as an
  * item on the merchant's open recovery plan. No customer contact happens here.
  *
+ * Composed of two halves so a batch caller (the demo seed) can run the per-case half for many
+ * independent cases concurrently and then write the shared plan once:
+ *   - preparePlanItem  — per-case, no shared state, safe to parallelise.
+ *   - commitPlanItems  — the single write to the merchant's RecoveryPlan + its audit entries.
+ *
  * @param {{recoveryCase: object, merchant: object, customer: object, payment: object|null}} args
  * @returns {Promise<{plan: object|null, decision: string, recoveryCase: object|null}>}
  */
 export async function planRecoveryForCase({ recoveryCase, merchant, customer, payment }) {
+  const prepared = await preparePlanItem({ recoveryCase, merchant, customer, payment });
+  if (!prepared.recoveryCase) return { plan: null, decision: "CASE_GONE", recoveryCase: null };
+
+  const { plan } = await commitPlanItems({ merchantId: merchant._id, prepared: [prepared] });
+  return { plan, decision: prepared.itemFields.intervention, recoveryCase: prepared.recoveryCase };
+}
+
+/**
+ * PLAN, phase 1 (per-case, no shared state). Runs the evaluate pipeline, persists the case,
+ * writes its pipeline audit entries, and derives the plan-item fields. Touches ONLY this case
+ * and independent audit inserts — never the merchant's RecoveryPlan — so many cases can run
+ * this concurrently. `commitPlanItems` does the one shared write afterwards.
+ *
+ * @param {{recoveryCase: object, merchant: object, customer: object, payment: object|null}} args
+ * @returns {Promise<{recoveryCase: object|null, itemFields: object|null}>}
+ */
+export async function preparePlanItem({ recoveryCase, merchant, customer, payment }) {
   const merchantId = merchant._id;
 
   const history = await getCustomerHistory(customer._id, merchantId);
@@ -70,37 +92,50 @@ export async function planRecoveryForCase({ recoveryCase, merchant, customer, pa
   } catch (err) {
     if (err.name !== "VersionError") throw err;
     recoveryCase = await RecoveryCase.findOne({ _id: recoveryCase._id, merchantId });
-    if (!recoveryCase) return { plan: null, decision: "CASE_GONE", recoveryCase: null };
+    if (!recoveryCase) return { recoveryCase: null, itemFields: null };
   }
 
-  const itemFields = buildPlanItemFields(recoveryCase, customer);
+  return { recoveryCase, itemFields: buildPlanItemFields(recoveryCase, customer) };
+}
+
+/**
+ * PLAN, phase 2 (one shared write). Appends the prepared item(s) to the merchant's open
+ * RecoveryPlan in a single save, then emits their RECOVERY_PLAN_CREATED audit entries in one
+ * batch. The autoplan path passes a single prepared item; the demo seed passes all of its
+ * planned cases at once. Item order is the order given; a re-planned case is refreshed in
+ * place, never duplicated.
+ *
+ * @param {{merchantId: any, prepared: Array<{recoveryCase: object, itemFields: object}>}} args
+ * @returns {Promise<{plan: object, created: boolean}>}
+ */
+export async function commitPlanItems({ merchantId, prepared }) {
   const { plan, created } = await getOrCreateActivePlan(merchantId);
 
-  const idx = plan.items.findIndex((i) => String(i.caseId) === String(recoveryCase._id));
-  if (idx >= 0) {
-    // Re-planned (case re-evaluated) — refresh in place, never duplicate.
-    plan.items[idx].set(itemFields);
-  } else {
-    plan.items.push(itemFields);
+  for (const { itemFields } of prepared) {
+    const idx = plan.items.findIndex((i) => String(i.caseId) === String(itemFields.caseId));
+    if (idx >= 0) plan.items[idx].set(itemFields);
+    else plan.items.push(itemFields);
   }
   await plan.save();
 
-  await writeAuditLog({
-    merchantId,
-    caseId: recoveryCase._id,
-    actor: "SYSTEM",
-    eventType: "RECOVERY_PLAN_CREATED",
-    reason: itemFields.intervention,
-    result: plan.status,
-    metadata: {
-      planId: plan._id,
-      planCreated: created,
-      customerFacing: itemFields.customerFacing,
-      requiresMerchantApproval: itemFields.requiresMerchantApproval,
-    },
-  });
+  await writeAuditLogs(
+    prepared.map(({ itemFields }) => ({
+      merchantId,
+      caseId: itemFields.caseId,
+      actor: "SYSTEM",
+      eventType: "RECOVERY_PLAN_CREATED",
+      reason: itemFields.intervention,
+      result: plan.status,
+      metadata: {
+        planId: plan._id,
+        planCreated: created,
+        customerFacing: itemFields.customerFacing,
+        requiresMerchantApproval: itemFields.requiresMerchantApproval,
+      },
+    }))
+  );
 
-  return { plan, decision: itemFields.intervention, recoveryCase };
+  return { plan, created };
 }
 
 async function getOrCreateActivePlan(merchantId) {

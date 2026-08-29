@@ -29,7 +29,7 @@ import {
   WebhookEvent,
 } from "../models/index.js";
 import { detectPaymentFailureRisk } from "../pipeline/riskDetector.js";
-import { planRecoveryForCase } from "../pipeline/recoveryPlan.js";
+import { preparePlanItem, commitPlanItems } from "../pipeline/recoveryPlan.js";
 import { writeAuditLog } from "../audit/auditLogger.js";
 import { logger } from "../lib/logger.js";
 
@@ -144,49 +144,65 @@ export async function seedDemoDataset({ merchantId }) {
   }
   await Payment.insertMany(paidDocs);
 
-  // 4. 10 failed payments → the EXISTING recovery pipeline (detect → plan). No intervention is
-  //    executed here; the plan stays PENDING_APPROVAL for the merchant's single confirmation.
-  const outcomes = [];
-  for (const spec of FAILED_SPECS) {
-    const customer = customers[spec.customerIndex];
-    const payment = await Payment.create({
+  // 4. 10 failed payments → the EXISTING recovery pipeline (detect → evaluate). No intervention
+  //    is executed here; the single shared plan stays PENDING_APPROVAL for the merchant's
+  //    confirmation. The 10 cases are independent (distinct customers, distinct cases), so
+  //    detection + evaluation + per-case audit run CONCURRENTLY; the one shared write —
+  //    appending every planned item to the merchant's RecoveryPlan — is done once, afterwards,
+  //    via commitPlanItems. This turns ~90 sequential DB round-trips into a handful, which is
+  //    what the "Entering demo…" latency was dominated by on the hosted (high-RTT) database.
+  const failedPaymentDocs = await Payment.insertMany(
+    FAILED_SPECS.map((spec) => ({
       merchantId,
-      customerId: customer._id,
+      customerId: customers[spec.customerIndex]._id,
       amount: spec.amount,
       currency: "INR",
       status: "failed",
       failureReason: spec.reason,
       razorpayPaymentId: `pay_demo_failed_${spec.customerIndex}`,
-    });
+    }))
+  );
 
-    let recoveryCase = await detectPaymentFailureRisk({ merchant, customer, payment });
-    await writeAuditLog({
-      merchantId,
-      caseId: recoveryCase._id,
-      actor: "SYSTEM",
-      eventType: "REVENUE_RISK_DETECTED",
-      reason: "PAYMENT_FAILED",
-      metadata: { paymentId: payment._id, amount: recoveryCase.amount, sourceType: "PAYMENT_FAILURE", demo: true },
-      result: recoveryCase.status,
-    });
+  const prepared = await Promise.all(
+    FAILED_SPECS.map(async (spec, i) => {
+      const customer = customers[spec.customerIndex];
+      const payment = failedPaymentDocs[i];
 
-    if (spec.expiredWindow) {
-      // The recovery window is computed from "now" by riskDetector; push it into the past so
-      // the (unchanged) policy engine resolves this case to EXPIRED on its own.
-      await RecoveryCase.updateOne(
-        { _id: recoveryCase._id },
-        { $set: { recoveryWindowExpiresAt: new Date(Date.now() - 60 * 60 * 1000) } }
-      );
-      recoveryCase = await RecoveryCase.findById(recoveryCase._id);
-    }
+      let recoveryCase = await detectPaymentFailureRisk({ merchant, customer, payment });
+      if (spec.expiredWindow) {
+        // The recovery window is computed from "now" by riskDetector; push it into the past —
+        // before evaluation — so the (unchanged) policy engine resolves this case to EXPIRED
+        // on its own. One save on the doc we already hold; no update + re-fetch.
+        recoveryCase.recoveryWindowExpiresAt = new Date(Date.now() - 60 * 60 * 1000);
+        await recoveryCase.save();
+      }
+      await writeAuditLog({
+        merchantId,
+        caseId: recoveryCase._id,
+        actor: "SYSTEM",
+        eventType: "REVENUE_RISK_DETECTED",
+        reason: "PAYMENT_FAILED",
+        metadata: { paymentId: payment._id, amount: recoveryCase.amount, sourceType: "PAYMENT_FAILURE", demo: true },
+        result: recoveryCase.status,
+      });
 
-    let planId = null;
-    if (spec.plan) {
-      const result = await planRecoveryForCase({ recoveryCase, merchant, customer, payment });
-      recoveryCase = result.recoveryCase || recoveryCase;
-      planId = result.plan?._id || null;
-    }
+      let itemFields = null;
+      if (spec.plan) {
+        const p = await preparePlanItem({ recoveryCase, merchant, customer, payment });
+        recoveryCase = p.recoveryCase || recoveryCase;
+        itemFields = p.itemFields;
+      }
+      return { spec, customer, payment, recoveryCase, itemFields };
+    })
+  );
 
+  // One shared plan: every planned item, in FAILED_SPECS order, in a single write + audit batch.
+  const planned = prepared.filter((p) => p.itemFields);
+  const { plan: sharedPlan } = planned.length
+    ? await commitPlanItems({ merchantId, prepared: planned })
+    : { plan: null };
+
+  const outcomes = prepared.map(({ spec, customer, payment, recoveryCase, itemFields }) => {
     const outcome = {
       customerIndex: spec.customerIndex,
       customerName: customer.name,
@@ -197,7 +213,7 @@ export async function seedDemoDataset({ merchantId }) {
       status: recoveryCase.status,
       selectedIntervention: recoveryCase.selectedIntervention || null,
       expected: spec.expect,
-      planId: planId ? String(planId) : null,
+      planId: itemFields && sharedPlan ? String(sharedPlan._id) : null,
     };
     const reached = outcome.selectedIntervention || outcome.status;
     outcome.matchedExpectation = reached === spec.expect;
@@ -208,8 +224,8 @@ export async function seedDemoDataset({ merchantId }) {
         reached,
       });
     }
-    outcomes.push(outcome);
-  }
+    return outcome;
+  });
 
   // 5. Contract self-check — the headline counts must be exact, or the seed failed.
   const [totalClients, paymentsPassed, paymentsFailed] = await Promise.all([
