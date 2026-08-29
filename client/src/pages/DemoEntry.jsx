@@ -54,10 +54,6 @@ export default function DemoEntry() {
         </Button>
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-
-        <p className="label-mono mt-6 text-[10px] uppercase tracking-[0.14em] text-brand-300">
-          Demo environment · Synthetic data · Razorpay Test Mode
-        </p>
       </RevealOnScroll>
     </div>
   );

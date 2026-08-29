@@ -1,5 +1,4 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { getToken } from "../api/client.js";
 
 // Primary nav follows the business owner's mental model (payments and recovery first);
 // secondary items are operational/configuration surfaces and render visually de-emphasized.
@@ -19,7 +18,6 @@ const SECONDARY_NAV_ITEMS = [
 
 export default function Layout() {
   const location = useLocation();
-  const authenticated = Boolean(getToken());
 
   return (
     <div className="min-h-screen text-brand-900">
@@ -62,14 +60,6 @@ export default function Layout() {
               );
             })}
           </nav>
-          <span className="label-mono hidden shrink-0 items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400 lg:flex">
-            <span className={`h-1.5 w-1.5 rounded-full ${authenticated ? "bg-brand-950" : "bg-slate-300"}`} />
-            {authenticated ? "Demo environment · Synthetic data · Razorpay Test Mode" : "No demo session"}
-          </span>
-          <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full lg:hidden ${authenticated ? "bg-brand-950" : "bg-slate-300"}`}
-            title={authenticated ? "Demo environment · Synthetic data · Razorpay Test Mode" : "No demo session"}
-          />
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-10">

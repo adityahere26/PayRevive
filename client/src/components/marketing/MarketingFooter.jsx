@@ -39,10 +39,7 @@ export function MarketingFooter() {
           </nav>
         </div>
 
-        <div className="hairline-dark mt-10 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <span className="label-mono text-[11px] text-white/40">
-            © {new Date().getFullYear()} PAYREVIVE — RAZORPAY AI BUILDATHON, TRACK 03: AI REVENUE RECOVERY
-          </span>
+        <div className="hairline-dark mt-10 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-end">
           <Link to="/demo" className="text-xs font-medium text-accent-light hover:text-white">
             Enter Demo →
           </Link>
