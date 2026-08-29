@@ -10,8 +10,12 @@ Read this first, then `SPEC.md` for what we're building, then `ARCHITECTURE.md` 
 - **One line:** An AI revenue recovery agent that detects revenue at risk, diagnoses the cause,
   selects a bounded intervention, checks it against deterministic merchant policy, executes it,
   and measures what was actually recovered.
-- **Current phase:** PLANNING. No application code exists yet. Do not scaffold `/client`,
-  `/server`, `/evaluation`, or `/tests` until explicitly instructed to start Day 2 of the build plan.
+- **Current phase:** SUBMISSION / final build. The product is implemented, tested
+  (`npm test` — 317 tests across 30 files at HEAD), and deployed: frontend on Vercel
+  (`https://payrevive.xyz`, custom domain), backend on Render, database on MongoDB Atlas,
+  `NODE_ENV=production`. `/client`, `/server`, `/evaluation`, and `/tests` are all built and
+  populated. The engineering constraints and core principles below still govern any further
+  change.
 
 ## AI provider — read this before touching anything AI-related
 
@@ -19,12 +23,16 @@ Two different things are both called "AI" in this project. Do not conflate them:
 
 - **Claude Code** is the development/coding assistant used to *build* payrevive — it writes code,
   writes these docs, runs tests. It is tooling for us, the developers, and has no role at runtime.
-- **Google Gemini is payrevive's runtime AI provider.** Every AI/voice-related runtime capability
-  in the shipped product — Hinglish voice intent classification, the recovery Decision/Planner,
-  and optionally decision-factor explanation text — calls the **Gemini API** via the official
-  `@google/genai` SDK, authenticated via `GEMINI_API_KEY`. No other AI provider is used at
-  runtime in the MVP. (Migrated from OpenAI; see `git log` for the migration commit if you need
-  the prior state — no OpenAI code, dependency, or env var remains.)
+- **Google Gemini is payrevive's runtime AI provider.** In the shipped build the one live Gemini
+  call is **Hinglish/Devanagari voice-intent classification** (`server/src/ai/gemini/voiceClassifier.js`),
+  via the official `@google/genai` SDK, authenticated via `GEMINI_API_KEY`, model
+  `GEMINI_MODEL || "gemini-2.5-flash"`. The recovery Decision/Planner module
+  (`server/src/ai/gemini/planner.js`) is implemented and tested but not wired to a route;
+  decision-factor explanation text is generated deterministically (`pipeline/decisionRationale.js`),
+  not by Gemini. When Gemini is unavailable, voice classification falls back to a bounded
+  deterministic keyword classifier (`pipeline/deterministicVoiceIntent.js`). No other AI provider
+  is used at runtime. (Migrated from OpenAI; see `git log` for the migration commit — no OpenAI
+  code, dependency, or env var remains.)
 - This file is named `CLAUDE.md` by the coding assistant's own naming convention — that says
   nothing about the product's runtime AI provider. Never describe Claude as payrevive's runtime AI
   in code, docs, the README, or the demo video.
@@ -53,10 +61,9 @@ These were set explicitly for this build and should not be relitigated mid-proje
   otherwise (it hasn't yet).
 - **No LLM tool-calling/agentic framework** (LangChain, AutoGPT-style loops, etc.) for the core
   recovery pipeline. See `AGENT_DESIGN.md` § Agent architecture for the actual conceptual model —
-  the pipeline is deterministic orchestration that calls plain service functions; Gemini's role is
-  narrow (Hinglish voice intent classification, the recovery Decision/Planner, and optional
-  explanation-text generation) and its output is always validated and re-checked by deterministic
-  policy code before anything executes.
+  the pipeline is deterministic orchestration that calls plain service functions; Gemini's only
+  wired-live role is Hinglish/Devanagari voice-intent classification, and its output is always
+  validated and re-checked by deterministic policy code before anything executes.
 - Simplest architecture that correctly demonstrates the product wins over impressive-looking
   complexity. This is a 7-day build for a judged submission, not a production fintech platform.
 
@@ -80,15 +87,14 @@ These were set explicitly for this build and should not be relitigated mid-proje
 - **Backend:** Node.js 20+, Express 4, Mongoose (MongoDB / MongoDB Atlas).
 - **Frontend:** React 18 + Vite, plain JS/JSX, hand-written CSS (no heavy component library —
   the dashboard must look like a restrained fintech ops tool, not a generic SaaS template).
-- **Auth:** JWT-based merchant sessions; a pre-seeded demo merchant/token powers the "Enter Demo"
-  flow so evaluators never need to register.
-- **AI (runtime):** Google Gemini API via the official `@google/genai` SDK, authenticated with
-  `GEMINI_API_KEY`, used only for (a) the recovery Decision/Planner, (b) Hinglish voice intent
-  classification, and (c) optional decision-factor explanation text. Structured output only
-  (Gemini's `responseSchema`/`responseMimeType: application/json`), validated server-side with
-  ajv before use; invalid output is rejected, not auto-corrected — see `server/src/ai/` and
-  `AGENT_DESIGN.md` § AI output contract. Claude Code is a development-time tool only and is
-  never called from application code — see § AI provider above.
+- **Auth:** JWT-based sessions. Only the demo path is implemented — `POST /api/auth/demo` mints a
+  2h token for a pre-seeded demo merchant so evaluators never register; there is no live
+  `/login` or `/register`. `GET /api/auth/me` is the session-validation endpoint the demo-entry
+  flow uses to detect and replace a stale token.
+- **AI (runtime):** Google Gemini via `@google/genai`, structured output only
+  (`responseSchema`/`responseMimeType: application/json`) validated server-side with ajv. See
+  § AI provider above for the one authoritative description (one live call: voice-intent
+  classification; planner unwired; deterministic fallback; Claude Code is dev tooling only).
 - **Validation:** ajv for both API request validation and AI output contract validation.
 - **Rate limiting:** `express-rate-limit` on sensitive routes.
 - **Security headers:** `helmet`.

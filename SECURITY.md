@@ -10,30 +10,35 @@ Judging alignment checklist).
 
 ## Authentication
 
-- JWT bearer tokens for merchant sessions (`POST /api/auth/login`, `/register`).
-- Standard merchant JWTs expire after **7 days**; there is no silent renewal — expiry forces a
-  fresh login.
-- Passwords hashed with **bcrypt**; never logged, never returned in any response.
+**Only demo authentication is implemented in this build.** There is no live `POST /api/auth/login`
+or `POST /api/auth/register`, no standard merchant session, and no live password path — a
+bcrypt helper (`server/src/lib/password.js`) and a `passwordHash` field exist for a future
+registration flow but are not reachable from any route. The two implemented auth endpoints are
+`POST /api/auth/demo` (mints a demo token) and `GET /api/auth/me` (session validation). JWTs are
+verified with `HS256` against `JWT_SECRET`; the token carries only `{merchantId, isDemo}` — no
+roles or permissions (every authorization decision is re-derived server-side from `merchantId`).
 
 ### Demo authentication
 
 - `POST /api/auth/demo` (rate-limited — see § Rate limiting) issues a token for a single,
   pre-seeded **demo merchant** record, with no credentials required, so evaluators can use
-  "Enter Demo" immediately.
-- **Expiration:** demo tokens are short-lived — **2 hours** — deliberately shorter than a real
-  merchant session, to limit the exposure window of a token anyone can mint.
-- **Authorization scope:** a demo token carries exactly the same authorization claims and passes
-  through exactly the same `merchantId`-scoping middleware as a real merchant token (see §
-  Authorization / IDOR prevention). It is not a privileged or reduced-privilege role, and it
-  cannot access, modify, or escalate into any other merchant's data — **demo tokens never bypass
-  authorization**, they are simply pre-authenticated for one specific, isolated merchant record.
-- **Demo merchant isolation:** the demo merchant is a distinct, clearly-flagged (`isDemo: true`)
-  document with its own `merchantId`; all data it creates (recovery cases, evaluation runs) is
-  scoped to it exactly as any other merchant's data would be, and is reseeded/reset on a schedule
-  so one evaluator's session can't corrupt another's demo experience.
-- `POST /api/auth/demo` deliberately does **not** accept any client-supplied merchant identifier
-  or role claim — the demo merchant's identity is hardcoded server-side, closing off any path to
-  requesting a token for an arbitrary/other merchant.
+  "Enter Demo" immediately. It deliberately does **not** accept any client-supplied merchant
+  identifier or role claim — the demo merchant's identity is hardcoded server-side.
+- **Expiration:** demo tokens are short-lived — **2 hours**.
+- **Authorization scope:** a demo token passes through exactly the same `merchantId`-scoping
+  middleware (`requireMerchantOwnership`) as any other token. It cannot access, modify, or
+  escalate into any other merchant's data — it is simply pre-authenticated for one specific,
+  isolated merchant record.
+- **Stale-token handling:** the demo-entry flow (`client/src/pages/DemoEntry.jsx`) never trusts
+  a stored token by mere existence. On every deliberate "Enter Demo" it discards any stored
+  token, mints a fresh demo token via `POST /api/auth/demo`, and reseeds the demo merchant — so
+  an expired or invalid token can never strand the user on a 401 dashboard. (`GET /api/auth/me`
+  is the endpoint used for session validation; it returns 401 for an expired/garbage token.)
+- **Demo merchant isolation:** the demo merchant is a distinct, `isDemo: true` document with its
+  own `merchantId`; all data it creates is `merchantId`-scoped exactly as any other merchant's
+  would be, and is **reseeded to the canonical 100 / 90 / 10 state on every deliberate
+  "Enter Demo"** (`DemoEntry.jsx` → `POST /api/demo/seed`), so each session starts pristine and
+  one session can't corrupt another's. There is no scheduled/cron reset.
 
 ## Authorization / IDOR prevention
 
@@ -61,18 +66,24 @@ Applied via `express-rate-limit`, tightest on the routes most exposed to abuse:
 
 | Route | Limit rationale |
 |---|---|
-| `POST /api/auth/login` | brute-force protection |
 | `POST /api/auth/demo` | unauthenticated token-minting endpoint — limited per-IP to prevent token-flooding or using it as a free path to hammer other endpoints under fresh tokens |
-| `POST /api/recovery-cases/:id/voice-intent` | prevents runaway Gemini API cost / spam sessions |
-| `POST /api/recovery-cases/:id/payment-link` | prevents payment-link spam against Razorpay |
-| `POST /api/recovery-cases/:id/execute` | prevents unlimited recovery-action triggering |
-| `POST /api/evaluation/run` | expensive (500–1000 pipeline runs); tightly limited |
-| `POST /api/webhooks/razorpay` | generous but present, to absorb retries without abuse |
+| `POST /api/demo/{payment-failure, seed, complete-test-payment}` | demo data-creating routes; also fenced to the demo merchant by `requireDemoMerchant` |
+| `POST /api/recovery-cases/:id/{evaluate, simulate-action, payment-link}` | prevents unlimited recovery-action triggering / payment-link spam against Razorpay |
+| `POST /api/recovery-cases/:id/voice/{session, turn}` | prevents runaway Gemini cost / spam voice sessions |
+| `POST /api/recovery-plan/:id/confirm` | the single merchant approval; bounded per-IP |
+| `POST /api/evaluation/run` | pipeline runs (20–500 cases per run); bounded |
+| `POST /api/merchant/integration/{reveal, regenerate}` | credential reveal / rotation |
+| `POST /api/webhooks/razorpay` and `.../inbound/:webhookId` | generous but present, to absorb Razorpay's retries without abuse |
+
+The limiters are the `createRateLimiter` factory in `server/src/middleware/rateLimit.js`
+(`demoAuth`, `paymentFailure`, `recoveryCaseAction`, `voiceSession`, `voiceTurn`,
+`razorpayWebhook`, `integration`).
 
 ## CORS
 
-`Access-Control-Allow-Origin` restricted to `FRONTEND_URL` from environment configuration —
-never `*` where credentials (the JWT bearer) are involved.
+`Access-Control-Allow-Origin` restricted to `CLIENT_URL` from environment configuration
+(`server/src/app.js`: `cors({ origin: env.CLIENT_URL, credentials: true })`) — never `*` where
+credentials (the JWT bearer) are involved, and never reflected from the request `Origin`.
 
 ## Secrets
 
@@ -94,10 +105,23 @@ Consolidated statement of the guarantees around the runtime AI provider (see als
 `AGENT_DESIGN.md` § Provider abstraction for the code boundary these are enforced through):
 
 - **Google Gemini is the runtime AI provider.** Claude Code is development tooling only and has
-  no runtime role — see `CLAUDE.md` § AI provider.
+  no runtime role — see `CLAUDE.md` § AI provider. In the shipped build the one wired-live
+  Gemini call is Hinglish/Devanagari **voice-intent classification**
+  (`server/src/ai/gemini/voiceClassifier.js`); the Decision/Planner module exists and is tested
+  but is not on any route.
 - **`GEMINI_API_KEY` is server-side only**, read from `process.env.GEMINI_API_KEY` in exactly one
   place (`server/src/ai/gemini/client.js`, the only file that imports `@google/genai`). It is
-  never hardcoded, never committed to Git, and never exposed to the client.
+  never hardcoded, never committed to Git, and never exposed to the client (no `VITE_`-prefixed
+  variant; nothing under `client/` references it). The model id is
+  `env.GEMINI_MODEL || "gemini-2.5-flash"` — a wrong/retired id makes every call 4xx, which the
+  fail-safe below turns into a fallback, never an error the caller sees.
+- **Deterministic fallback on any Gemini failure.** If the Gemini call throws, times out, returns
+  non-JSON, or fails schema validation, voice classification hands off to a bounded deterministic
+  keyword classifier (`server/src/pipeline/deterministicVoiceIntent.js`) — an ordered
+  Roman/Hinglish + Devanagari phrase list that can only emit an existing `VOICE_INTENTS` value
+  (negation checked before affirmation); anything not clearly matched stays `UNCLEAR`. The
+  matched intent still passes through `pipeline/voiceIntentMapper.js` and the same Policy Engine,
+  so the fallback cannot bypass policy, mark anything recovered, or act before merchant approval.
 - **Gemini never receives Razorpay secrets** (`RAZORPAY_KEY_ID`/`_SECRET`/`_WEBHOOK_SECRET`) or
   raw payment credentials (card numbers, CVV, UPI PINs) — the prompt-building function
   (`buildRecoveryPrompt`) reads an explicit allowlist of case-safe fields only (amount, currency,
@@ -139,6 +163,15 @@ Consolidated statement of the guarantees around the runtime AI provider (see als
   out-of-order deliveries.
 - `webhook_events` stores `eventId, eventType, receivedAt, processedAt, status, payloadHash,
   processingError` — a hash of the payload, not the full sensitive payload itself.
+- **Per-merchant inbound webhook** (`POST /api/webhooks/razorpay/inbound/:webhookId`): the
+  merchant is resolved from the `:webhookId` in the URL, never from the payload; its signing
+  secret is stored on `Merchant.integration.razorpay.webhookSecret` with `select: false`.
+- **The signing secret is never in the GET response.** `GET /api/merchant/integration` returns
+  only a mask (`••••…`) plus `hasWebhookSecret`. The literal value is returned only by
+  `POST /api/merchant/integration/reveal` — authenticated, scoped to the owning merchant
+  (identity from the session, never a request-body id), rate-limited, and never written to logs
+  or audit metadata. `POST /api/merchant/integration/regenerate` rotates the `webhookId` +
+  secret and immediately invalidates the old URL.
 
 ## Prompt injection
 
@@ -198,6 +231,10 @@ Critical tests required (implemented in `/tests`, per `CLAUDE.md` definition of 
 
 ## Deployment security
 
-HTTPS enforced on both Vercel and Render; environment variables configured in each platform's
-secret store, never committed; `helmet` applied for standard secure headers; request body size
-limits set on all routes, tightest on the webhook and voice-intent routes.
+HTTPS enforced on both Vercel and Render (custom domain `payrevive.xyz` with HSTS);
+environment variables configured in each platform's secret store, never committed; `helmet`
+applied for standard secure headers (CSP, `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`, COOP/CORP); a 100 kB request-body limit (`express.json({ limit: "100kb" })`
+and per-route `express.raw({ limit: "100kb" })` on the webhook routes). The Vercel SPA rewrite
+(`client/vercel.json`) excludes `/api/`, so deep-link/refresh works without shadowing the
+cross-origin API calls to Render.

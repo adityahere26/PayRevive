@@ -151,26 +151,41 @@ step 5 plus a fresh steps 1–4 re-check) has final say before anything executes
 Thresholds are initial values chosen for demo legibility and are documented as tunable, not hard
 physical constants.
 
-## Voice intent → outcome mapping
+## Voice intent → candidate action mapping
 
-| Intent | Deterministic result |
+Implemented in `server/src/pipeline/voiceIntentMapper.js` — a pure deterministic lookup from the
+classified `intent` (Gemini or the keyword fallback) to a **candidate** action, which then still
+passes through the Eligibility/Policy Engine (`server/src/pipeline/orchestrator.js`
+`runVoiceDecisionPipeline`) before anything executes:
+
+| Intent | Candidate action (as implemented) |
 |---|---|
-| `PAY_NOW` | propose `CREATE_PAYMENT_LINK` → **explicit confirmation required** → execute on affirmative |
-| `PAY_LATER` | `RECORD_PROMISE_TO_PAY` (see lifecycle below) |
-| `PAYMENT_METHOD_PROBLEM` | offer alternate method framing, still resolves to `CREATE_PAYMENT_LINK` (link supports multiple methods) or `STOP`/`ESCALATE` per policy |
-| `CANNOT_PAY` | `RECORD_PROMISE_TO_PAY` if a future date is offered, else `STOP` |
-| `REFUSE` | `STOP` — immediate, no repeated attempts, audited as `VOICE_INTENT_DETECTED(REFUSE) → RECOVERY_STOPPED`. Wins over high-value escalation per § Policy precedence step 1 |
-| `UNCLEAR` | re-ask for clarification; no action executes |
+| `PAY_NOW` | `CREATE_PAYMENT_LINK` |
+| `PAYMENT_METHOD_PROBLEM` | `CREATE_PAYMENT_LINK` (the link supports multiple methods) |
+| `PAY_LATER` | `ESCALATE` — *Promise-to-Pay capture is not implemented in this build (see below)* |
+| `CANNOT_PAY` | `ESCALATE` — *same; not routed to Promise-to-Pay* |
+| `REFUSE` | `STOP` — immediate, no repeated attempts; wins over high-value escalation per § Policy precedence step 1 |
 | `HUMAN_ESCALATION` | `ESCALATE` |
+| `UNCLEAR` | no candidate action — the caller re-asks for clarification; nothing executes |
 
-## Promise-to-Pay lifecycle
+**No separate in-voice affirmative confirmation turn is required.** The single approval gate in
+the shipped product is `POST /api/recovery-plan/:id/confirm` — no customer-facing action for a
+planned case runs before the merchant confirms the plan. A **manual voice-override session**
+(started on a case that has not yet been planned — status `RISK_DETECTED` / `ANALYZING` /
+`FAILED` / `ELIGIBLE`) runs the same eligibility + policy engine within the turn; if it resolves
+to `POLICY_APPROVED` with `CREATE_PAYMENT_LINK` and Razorpay is configured, the link is created
+in that turn through the exact same `createLivePaymentLink` path (`server/src/routes/voice.js`).
+Amount, currency, customer, and merchant are always read from the stored recovery case, never
+from the transcript or the model's output.
 
-`PENDING` (on creation) → `FULFILLED` (payment observed before/at promised date) or `BROKEN`
-(promised date passed, no payment) — transition evaluated by the Outcome Evaluator, not asserted
-by voice input. Fields: `recoveryCaseId, customerId, amount, promisedDate, createdAt, status,
-source (VOICE|MANUAL), conversationRef`. No SMS/WhatsApp reminder is claimed unless a real
-integration exists (none in MVP) — the UI states "Next follow-up: Tomorrow" as an internal
-tracking marker, not a claim that a message was sent.
+## Promise-to-Pay lifecycle (specified — not implemented in this build)
+
+`server/src/models/PromiseToPay.js` exists with the fields below, but no code path creates a
+`PromiseToPay` record: `voiceIntentMapper.js` resolves `PAY_LATER` / `CANNOT_PAY` to `ESCALATE`.
+If implemented, the lifecycle would be `PENDING` (on creation) → `FULFILLED` (payment observed
+before/at the promised date) or `BROKEN` (promised date passed, no payment), with fields
+`recoveryCaseId, customerId, amount, promisedDate, createdAt, status, source (VOICE|MANUAL),
+conversationRef`. No SMS/WhatsApp reminder would be claimed — none is integrated.
 
 ## Stopping rules (all must hold: no repeated attempts after)
 
@@ -209,9 +224,9 @@ already used its retry attempts.
 Any failure returns a structured `RECOVERY_POLICY_BLOCKED` (or equivalent) error and writes an
 audit event; it never silently no-ops.
 
-**Implemented (Day 6), Test Mode only.** `POST /api/recovery-cases/:id/payment-link` enforces this
+**Implemented, Test Mode only.** `POST /api/recovery-cases/:id/payment-link` enforces this
 checklist exactly as written above before calling Razorpay's Standard Payment Links API in
-Razorpay **Test Mode** — see `ARCHITECTURE.md` § Razorpay integration plan for the full mechanism,
+Razorpay **Test Mode** — see `ARCHITECTURE.md` § Razorpay integration for the full mechanism,
 including:
 
 - Item 4 (idempotent reuse) is backed by a single atomic Mongo claim
@@ -228,9 +243,9 @@ including:
   payment (`payment_link.paid`) against this same case — never at the point this checklist passes,
   and never merely because a payment link was created. `payment_link.expired`/`.cancelled` never
   credit revenue.
-- Voice-driven `CREATE_PAYMENT_LINK` (`RECOVERY_POLICY.md` § Voice intent → outcome mapping, `PAY_NOW`)
-  runs through this exact same checklist and the same executor — there is no separate, weaker
-  voice-only path to Razorpay.
+- Voice-driven `CREATE_PAYMENT_LINK` (§ Voice intent → candidate action mapping, `PAY_NOW`)
+  runs through this exact same checklist and the same `createLivePaymentLink` executor — there is
+  no separate, weaker voice-only path to Razorpay.
 
 Real/live Razorpay payments are out of scope for this build; nothing in this checklist, the
 executor, or the webhook handler can reach Razorpay Live Mode (`ARCHITECTURE.md` § Test Mode

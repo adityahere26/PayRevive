@@ -47,6 +47,9 @@ cannot bypass merchant policy. See § Provider abstraction below for how this is
 
 ## Why the Planner doesn't run its own tool-calling loop
 
+*(Section numbers below refer to the original Razorpay Track 03 brief, which is external to this
+repository — its text is not checked in.)*
+
 The brief's §11 lists tool names (`getRecoveryCase`, `createPaymentLink`, etc.) in a shape that
 could suggest a classic LLM function-calling agent deciding, turn by turn, which tool to invoke.
 We deliberately do not build it that way, for reasons specific to this domain:
@@ -74,12 +77,15 @@ audited executor) — it just doesn't hold the keys itself.
 
 To be explicit about what "AI" means in this product:
 
-- **Hinglish voice intent classification** — a real Gemini API call, constrained to the structured
-  output contract below. This is genuine natural-language understanding work a rule engine cannot
-  do well, and it is the product's actual AI differentiator.
-- **Decision-factor explanation text (P1, optional)** — a short natural-language sentence
-  summarizing already-computed reason codes for the case detail page's "Why this action?" panel,
-  also via the Gemini API. Purely descriptive; it does not decide anything.
+- **Hinglish/Devanagari voice-intent classification** — a real Gemini API call
+  (`server/src/ai/gemini/voiceClassifier.js`), constrained to the structured output contract
+  below, with the deterministic keyword classifier as a fallback (§ Deterministic voice-intent
+  fallback). This is the one wired-live AI call and the product's actual AI differentiator.
+- **Decision-factor explanation text** — the case-detail "Why PayRevive decided this" panel is
+  generated **deterministically** from the already-computed fields (`pipeline/decisionRationale.js`),
+  not by a Gemini call. Purely descriptive; it does not decide anything.
+- **Recovery Decision/Planner** (`server/src/ai/gemini/planner.js`) — implemented and fully
+  tested behind the `AIProvider` interface, but **not wired to any route** in this build.
 - Root cause classification, eligibility, recovery scoring, intervention selection, and policy
   enforcement are **all deterministic rule/formula-based code**, not model calls. This is
   intentional (see above), not a limitation to apologize for — it's what makes the system
@@ -89,7 +95,7 @@ To be explicit about what "AI" means in this product:
 
 | # | Module | Type | Responsibility |
 |---|---|---|---|
-| 1 | Revenue Risk Detector | deterministic | Triggered by a `payment.failed` event or checkout-abandonment detection (real timeout or demo trigger — see `ARCHITECTURE.md` § Checkout abandonment detection); creates a `recovery_case` in `RISK_DETECTED` |
+| 1 | Revenue Risk Detector | deterministic | Triggered by a `payment.failed` event (real per-merchant webhook or the demo "Simulate Payment Failure" — one shared `ingestPaymentFailure`). Creates a `recovery_case` in `RISK_DETECTED`. *(Checkout-abandonment triggering — `ARCHITECTURE.md` § Checkout abandonment detection — is designed but not wired.)* |
 | 2 | Root Cause Analyzer | deterministic | Maps payment failure reason / abandonment context to a root cause category (below) via a lookup table. Describes **why revenue was lost** — it never classifies a case as high-value/requiring-review; that is Policy/Eligibility territory, see § HIGH_VALUE ownership |
 | 3 | Recovery Eligibility Engine | deterministic | Evaluates steps 1–4 of the shared precedence function (`RECOVERY_POLICY.md` § Policy precedence): `OPT_OUT → HIGH_VALUE_AMOUNT_CHECK → RECOVERY_WINDOW → ATTEMPT_LIMIT`. Produces `ELIGIBLE`, or routes directly to `STOPPED` / `ESCALATED` / `EXPIRED` |
 | 4 | Recovery Scoring Engine | deterministic | Runs only for `ELIGIBLE` cases. Weighted formula over structured signals → `recoveryProbability` + `reasonCodes[]`; see `RECOVERY_POLICY.md` |
@@ -178,16 +184,17 @@ GeminiProvider   (the only implementation today)
 The planner's `recommendedAction` is drawn from the same `ACTION_ALLOWLIST` the deterministic
 Policy Engine already enforces (`policy/policyPrecedence.js`), plus `ASK_CLARIFICATION` (a
 non-executable "no action" signal) — so the model cannot express a novel action even before the
-Policy Engine's own structural allowlist check runs a second time. As of this migration, the
-planner module exists and is fully tested but is **not yet wired into any live route** — voice
-(the next phase) is what will call it in production; see `SPEC.md` § non-goals and the migration
-task that introduced this module for the reasoning.
+Policy Engine's own structural allowlist check runs a second time. In this build the planner
+module exists and is fully tested behind the `AIProvider` interface but is **not wired into any
+route** — the one live Gemini call is the Voice Intent Classifier (`voiceClassifier.js`), which
+does not use the planner. See `SPEC.md` and the OpenAI→Gemini migration commit for the reasoning.
 
 ## AI output contract
 
-Applies to every Gemini call in the system (currently: Voice Intent Classifier and the recovery
-Decision/Planner — `server/src/ai/schema.js`), enforced via Gemini's structured output
-(`responseSchema`/`responseMimeType: application/json`) plus independent server-side ajv
+Applies to every Gemini call in the system — wired live: the Voice Intent Classifier; built but
+unwired: the recovery Decision/Planner (`server/src/ai/schema.js`) — enforced via Gemini's
+structured output (`responseSchema`/`responseMimeType: application/json`) plus independent
+server-side ajv
 validation:
 
 ```json
@@ -217,51 +224,89 @@ validation:
 `CREATE_PAYMENT_LINK`, `START_VOICE_RECOVERY`, `RECORD_PROMISE_TO_PAY`, `ESCALATE`, `STOP`. Any
 value outside this set — from AI output, from a client request body, or from anywhere else — is
 rejected before it reaches the Policy Engine. This check is structural (a set membership test),
-distinct from the Policy Engine's business-rule checks.
+distinct from the Policy Engine's business-rule checks. (`RECORD_PROMISE_TO_PAY` is a valid
+allowlist value but is never currently produced — `voiceIntentMapper.js` routes `PAY_LATER` /
+`CANNOT_PAY` to `ESCALATE`; see `RECOVERY_POLICY.md` § Promise-to-Pay lifecycle.)
 
 ## Voice pipeline
 
+As implemented in `server/src/routes/voice.js` (mounted at `/api/recovery-cases/:id/voice` by
+`routes/recoveryCases.js`, after `requireAuth` + `requireMerchantOwnership`). A session lifecycle,
+not a single call:
+
 ```
 Browser mic (Chrome recommended — best Web Speech API support for Hinglish code-switched speech)
-   │  Browser Speech Recognition → transcript (text)
-   │  Text-input fallback available at all times, feeding the EXACT SAME downstream pipeline
+   │  webkitSpeechRecognition → transcript (text). Text-input fallback available at all times,
+   │  feeding the EXACT SAME downstream pipeline. On a "network" speech error the UI shows a
+   │  calm "type your response below" message — the mic uses a Google cloud service the browser
+   │  may not reach; this is a Web Speech API environment limit, not a PayRevive failure.
    ▼
-POST /api/recovery-cases/:id/voice-intent  { transcript }
+POST /api/recovery-cases/:id/voice/session       → { sessionId }  (increments voiceAttempts,
+   │                                                 writes VOICE_SESSION_STARTED)
    ▼
-Backend: load case (merchant/session-scoped) + build constrained prompt
-   │  (case amount, status, customer name — never the transcript alone, never credentials)
+POST /api/recovery-cases/:id/voice/turn  { sessionId, transcript }
    ▼
-Gemini API call (structured output) → ajv validation (reject/re-ask on failure)
+provider.classifyVoiceIntent(transcript, …)
+   │  Gemini API call (responseSchema / responseMimeType: application/json) → ajv validation.
+   │  On ANY failure (missing key, timeout, HTTP 4xx/5xx incl. a wrong GEMINI_MODEL, non-JSON,
+   │  schema violation) → deterministic keyword fallback (see § Deterministic voice-intent
+   │  fallback). No match → UNCLEAR.
    ▼
-Deterministic mapping: classified intent → candidate action
-   │  (still passes through Intervention Selector + Policy Engine — see § Agent architecture)
+pipeline/voiceIntentMapper.js: classified intent → candidate action (a pure lookup)
    ▼
-For money-moving actions (PAY_NOW → CREATE_PAYMENT_LINK): explicit confirmation turn required
-   │  Agent: "Main ₹2,999 ka secure payment option generate kar raha hoon. Proceed karun?"
-   │  Only a subsequent affirmative turn executes the action.
+pipeline/orchestrator.js runVoiceDecisionPipeline: the SAME Eligibility + Policy Engine as text
+   │  recovery. UNCLEAR (candidateAction == null) → clarification response, nothing mutates.
    ▼
-Deterministic Hinglish response template selected by (intent, policy decision, case data)
-   │  — never freely generated text for anything that states an amount, promise, or outcome
+If the turn resolves to POLICY_APPROVED + CREATE_PAYMENT_LINK:
+   │   Razorpay configured  → createLivePaymentLink() in this turn (the exact same path as
+   │                          POST /:id/payment-link; case → WAITING_OUTCOME)
+   │   Razorpay not configured → the seeded simulated executor (status SIMULATED)
+   │  There is NO separate in-voice affirmative-confirmation turn. The one approval gate for a
+   │  PLANNED case is POST /api/recovery-plan/:id/confirm; the flow above is the manual
+   │  voice-override path for a case that has not yet been planned.
    ▼
-Response returned to frontend → spoken via browser SpeechSynthesis + shown in transcript panel
+Response text: two forms (ai/gemini/responseGenerator.js) — `response` (Roman Hinglish, shown)
+   │  and `speechText` (Devanagari, spoken via browser SpeechSynthesis). Deterministic per-outcome
+   │  bilingual template on any Gemini failure; never freely-generated text for an amount/outcome.
    ▼
-Audit events written at every step (VOICE_SESSION_STARTED, VOICE_INTENT_DETECTED,
-POLICY_CHECKED, and the resulting action's event)
+POST /api/recovery-cases/:id/voice/session/end   → writes VOICE_SESSION_ENDED
+Audit at every step: VOICE_SESSION_STARTED, VOICE_INTENT_DETECTED, AI_RECOMMENDATION_CREATED,
+POLICY_EVALUATED (+ the pipeline events), the action's event, VOICE_RESPONSE_GENERATED,
+VOICE_SESSION_ENDED.
 ```
 
 Amount, currency, customer, and merchant are **always** read from the server-side recovery case,
-never from the transcript, the model's output, or any client-supplied value. The voice agent's
-only effective request surface is "propose `CREATE_PAYMENT_LINK_FOR_CASE`" — it cannot specify an
-amount, destination, or customer.
+never from the transcript, the model's output, or any client-supplied value.
 
-No telephony is built in this MVP — the experience is entirely browser-based. Chrome is the
-recommended/supported demo browser given its Web Speech API support; the text-input fallback
-exists specifically so the product still works end-to-end in browsers with weak or no speech
-recognition support, using the identical classification → policy → action pipeline.
+No telephony is built (a stated non-goal in `SPEC.md`) — `integrations/telephony/provider.js` is
+a stub. The experience is entirely browser-based; the text-input fallback exists specifically so
+the product still works end-to-end in browsers with weak or no speech recognition support, using
+the identical classification → policy → action pipeline.
 
-Voice UI states: `IDLE, LISTENING, THINKING, RESPONDING, ACTION_REQUIRED, PAYMENT_LINK_CREATED,
-PROMISE_RECORDED, RECOVERED, STOPPED, ESCALATED` — a direct mirror of backend case status plus a
-local session state.
+**Voice UI states** (`client/src/pages/VoiceRecovery.jsx` `STATUS_LABELS`): `IDLE, READY,
+LISTENING, THINKING, RESPONDING, ENDED`. The decision panels are driven by view modes derived in
+`client/src/lib/voiceRecoveryView.js` (`terminal, started, limit_reached, awaiting_confirmation,
+non_voice, startable, unavailable`) from the case status + policy + current recovery plan.
+
+## Deterministic voice-intent fallback
+
+`server/src/pipeline/deterministicVoiceIntent.js` — the **only** fallback used when
+`classifyVoiceIntent` can't use Gemini. It is intentionally not NLP: a short, transparent,
+ordered list of high-signal phrases in **both Roman/Hinglish and Devanagari**, each mapped to an
+**existing** `VOICE_INTENTS` value.
+
+- Negation / deferral / inability rules are ordered **before** `PAY_NOW`, so "payment nahi karna"
+  / "पेमेंट नहीं करना है" / "baad me karunga" is never misread as "pay now".
+- Any transcript that doesn't clearly match a phrase returns the unchanged
+  `SAFE_FALLBACK_VOICE_INTENT` (`UNCLEAR`) — the classifier never guesses; ambiguous input still
+  gets the "please repeat" clarification.
+- A match is flagged `fallback: true`, `confidence: 0.6`, `reasonCodes: ["DETERMINISTIC_KEYWORD_MATCH"]`
+  (audited as `VOICE_INTENT_DETECTED` with `result: "FALLBACK"`).
+- The matched intent still flows through `voiceIntentMapper.js` + the same Eligibility/Policy
+  Engine and still needs merchant approval for a planned case — it **cannot** bypass policy,
+  mark anything recovered, name an amount/payee, or act before approval. Covered by
+  `tests/deterministicVoiceIntent.test.js` and `tests/voiceDeterministicFallback.test.js`
+  (incl. high-value → ESCALATE, opt-out session refused, "no policy bypass").
 
 ## Prompt injection defense
 

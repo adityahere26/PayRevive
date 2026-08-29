@@ -40,54 +40,68 @@
 The recovery pipeline is **deterministic orchestration**: plain function calls in sequence, each
 a separate module with a narrow contract. The only module that calls an external AI model is the
 Voice Intent Classifier, via the **Gemini API** (payrevive's sole runtime AI provider, via the
-official `@google/genai` SDK — Claude Code is a development-time tool only, see `CLAUDE.md` § AI
-provider), and only during an active voice session; its output is a validated, schema-constrained
-recommendation that still passes through the Policy Engine like any other candidate action. See
-`AGENT_DESIGN.md` § Agent architecture for the full conceptual model (AI Decision/Planner →
-policy/guardrail engine → allowlisted action → executor → observation), § Provider abstraction
-for the `AIProvider` → `GeminiProvider` code boundary (`server/src/ai/`), and the rationale for
-why this is not built as a live LLM tool-calling loop.
+official `@google/genai` SDK, model `env.GEMINI_MODEL || "gemini-2.5-flash"` — Claude Code is a
+development-time tool only, see `CLAUDE.md` § AI provider), and only during an active voice
+session; its output is a validated, schema-constrained recommendation that still passes through
+the Policy Engine like any other candidate action. If the Gemini call fails or returns unusable
+output, classification falls back to a bounded deterministic keyword classifier
+(`server/src/pipeline/deterministicVoiceIntent.js`, Roman/Hinglish + Devanagari, existing intents
+only). See `AGENT_DESIGN.md` § Agent architecture for the conceptual model, § Voice pipeline and
+§ Deterministic voice-intent fallback for the runtime path, § Provider abstraction for the
+`AIProvider` → `GeminiProvider` code boundary (`server/src/ai/`), and the rationale for why this
+is not built as a live LLM tool-calling loop.
 
-## Folder structure (planned — not yet created)
+## Folder structure (as built)
 
 ```
-/client                    React frontend (Vite, plain JS/JSX)
+/client                    React frontend (Vite, plain JSX, Tailwind v4)
   /src
-    /pages                 Dashboard, RecoveryCaseDetail, VoiceRecovery, MerchantPolicy, Evaluation
-    /components
-    /api                   fetch wrappers, one per resource
-    /state                 minimal client state (auth token, demo mode flag)
+    /pages                 Dashboard, Payments, RecoveryCases, RecoveryCaseDetail, VoiceRecovery,
+                            Evaluation, AuditTrail, MerchantPolicy, Integration, DemoEntry,
+                            NotFound + /marketing (Landing, About, HowItWorks, Solutions, Contact)
+    /components             /ui, /marketing, /motion, /floating, Layout.jsx
+    /api                    client.js — one fetch wrapper + typed error
+    /lib                    format.js, statusMeta.js, voiceRecoveryView.js (no /state dir —
+                            the JWT lives in localStorage via api/client.js)
+  vercel.json               SPA rewrite: /((?!api/).*) -> /index.html  (see § Deployment topology)
 
 /server                     Express backend
   /src
-    /models                 Mongoose schemas (one file per collection)
-    /pipeline                the 10 deterministic modules from AGENT_DESIGN.md
-    /policy                  policy engine + policy defaults
-    /razorpay                Razorpay client wrapper (payment links, webhook verify)
-    /ai                      provider.js (AIProvider boundary) + schema.js (AI output schema +
-                              validator) + /gemini (client.js — the only file importing
-                              @google/genai — and planner.js) — see AGENT_DESIGN.md §
-                              Provider abstraction
-    /routes                  Express routers, grouped by resource
-    /middleware              auth, merchant-scoping, rate limit, error handler
-    /audit                   audit logger
-    /lib                     seeded PRNG, shared utils
+    /models                 Mongoose schemas (12: Merchant, Customer, Payment, CheckoutSession,
+                            RecoveryCase, RecoveryAction, RecoveryAttempt, PromiseToPay,
+                            RecoveryPlan, WebhookEvent, AuditLog, EvaluationRun) + index.js
+    /pipeline                the deterministic modules from AGENT_DESIGN.md + orchestrator.js,
+                            recoveryPlan.js, deterministicVoiceIntent.js, decisionRationale.js,
+                            tools.js, transition.js, voiceIntentMapper.js
+    /policy                  policyEngine.js + policyPrecedence.js (the shared precedence fn)
+    /ai                      provider.js (AIProvider boundary) + schema.js (ajv contract) +
+                            /gemini (client.js — the only file importing @google/genai —
+                            voiceClassifier.js, planner.js, responseGenerator.js)
+    /integrations
+      /razorpay              client.js (Basic Auth REST, no SDK), paymentLinks.js, webhookVerify.js
+      /telephony             provider.js — a stub; no provider wired (see § Recovery plans)
+    /routes                  auth, demo, recovery-cases (+ /voice), recovery-plan, dashboard,
+                            evaluation, audit-log, policy, integration, webhooks, health
+    /services                paymentFailureIngest.js, demoMerchant.js, demoSeed.js, demoTestPayment.js
+    /middleware              auth, authorize (requireMerchantOwnership), rate limit, error handler,
+                            notFound, requestContext
+    /audit                   auditLogger.js
+    /lib                     jwt, prng (mulberry32), validate (ajv), errors, logger, password
 
-/evaluation                  synthetic dataset generator + batch evaluator (imports /server/src/pipeline
-                              directly so evaluation runs the exact same decision code as production)
+/evaluation                  datasetGenerator.js + batchEvaluator.js + README.md — imports
+                            server/src/pipeline directly so a run exercises the exact same
+                            decision code as production
 
-/tests                       node:test suites, mirroring /server/src structure
+/tests                       node:test suites (30 files, 317 tests at HEAD) + testUtils/testServer.js
 
-/docs                        supplementary diagrams (added as needed; root-level docs remain the
-                              source of truth)
+/scripts                     seedDemo.js (`npm run seed:demo`)
 
 Root: README.md CLAUDE.md SPEC.md ARCHITECTURE.md AGENT_DESIGN.md RECOVERY_POLICY.md
-      EVALUATION.md SECURITY.md TESTING.md DEMO_SCRIPT.md .env.example
+      EVALUATION.md SECURITY.md .env.example
 ```
 
-`TESTING.md`, `DEMO_SCRIPT.md`, and `README.md` are written later (Day 6/7 per the execution
-plan) once there is real implementation and real results to describe honestly — they are not
-part of this planning pass.
+(`TESTING.md`, `DEMO_SCRIPT.md`, and a `/docs` dir were planned but not produced — the root
+docs above remain the source of truth.)
 
 ## Database schema (MongoDB / Mongoose)
 
@@ -128,7 +142,7 @@ any decision. It powers the case-detail "Why PayRevive decided this" panel; its 
 also copied onto the recovery-plan item for the merchant's review.
 Indexes: `merchantId`, `customerId`, `status`, `createdAt`
 
-The three `razorpay*` fields are Day 6 additions, safe identifiers only (never a credential) — see
+The three `razorpay*` fields hold safe identifiers only (never a credential) — see
 § Razorpay integration (Test Mode). `razorpayPaymentLinkId` doubles as the Payment Link safety
 checklist's idempotency check (`RECOVERY_POLICY.md`): once set, a retry/double-click reuses the
 existing link instead of creating a second one. `razorpayLinkClaimedAt` backs the atomic,
@@ -227,32 +241,32 @@ above throws and is rejected, so an invalid state change can never silently occu
 
 ## API contract
 
-All routes except `/api/auth/*` and `/api/webhooks/*` require a JWT bearer token, and every
-resource route re-verifies `resource.merchantId === req.merchant.id` before returning data.
+All routes except `/api/auth/*`, `/api/health`, and `/api/webhooks/*` require a JWT bearer token,
+and every `:id` resource route runs `requireMerchantOwnership` (one `{_id, merchantId}` query;
+missing or other-merchant → the same 404) before returning data.
 
 | Method | Route | Notes |
 |---|---|---|
-| POST | `/api/auth/login` | rate-limited |
-| POST | `/api/auth/register` | rate-limited; disabled or restricted in demo deployment if needed |
-| POST | `/api/auth/demo` | rate-limited; issues a short-lived (2h), scoped token for the pre-seeded demo merchant, no credentials needed — see `SECURITY.md` § Demo authentication |
-| GET | `/api/dashboard/summary` | primary + secondary metrics for the authenticated merchant |
-| GET | `/api/recovery-cases` | paginated, filterable by status/sourceType |
-| GET | `/api/recovery-cases/:id` | 404 if not found OR not owned by merchant (never distinguish the two) |
-| POST | `/api/recovery-cases/:id/analyze` | runs root cause + eligibility + scoring, advances state |
-| POST | `/api/recovery-cases/:id/execute` | runs intervention selection + policy check + execution |
-| POST | `/api/recovery-cases/:id/payment-link` | rate-limited; full validation chain, see § Razorpay integration |
-| POST | `/api/recovery-cases/:id/promise-to-pay` | records a promise (from voice or manual entry) |
-| POST | `/api/recovery-cases/:id/escalate` | forces `ESCALATED`, writes audit event |
-| POST | `/api/recovery-cases/:id/stop` | forces `STOPPED`, writes audit event |
-| POST | `/api/recovery-cases/:id/voice-intent` | rate-limited; body: `{transcript}`; see `AGENT_DESIGN.md` |
+| GET | `/api/health` | app status, DB connectivity, environment, timestamp — no auth |
+| POST | `/api/auth/demo` | rate-limited; issues a short-lived (2h), scoped token for the pre-seeded demo merchant, no credentials — see `SECURITY.md` § Demo authentication. **No `/login` or `/register` in this build.** |
+| GET | `/api/auth/me` | session validation — returns `{id, name, email, isDemo}` for a valid token; 401 for expired/garbage (used by the demo-entry stale-token check) |
+| POST | `/api/demo/payment-failure` | `requireDemoMerchant`; the demo "Simulate Payment Failure" ingest trigger |
+| POST | `/api/demo/seed` | `requireDemoMerchant`; resets the caller's data and re-seeds the canonical 100/90/10 scenario (called on every "Enter Demo") |
+| POST | `/api/demo/complete-test-payment` | `requireDemoMerchant`; signs a `payment_link.paid` event and delivers it to the real webhook route — see `services/demoTestPayment.js` |
+| GET | `/api/dashboard/summary` / `GET /api/dashboard/payments-overview` | metrics for the authenticated merchant + failed-payment list + current recovery plan |
+| GET | `/api/recovery-cases` | paginated, filterable by `status` / `sourceType` |
+| GET | `/api/recovery-cases/:id` | 404 if not found OR not owned by merchant (never distinguish) |
 | GET | `/api/recovery-cases/:id/audit` | full audit trail for the case |
-| GET | `/api/recovery-plan/current` | the merchant's open (PENDING_APPROVAL) recovery plan, or the most recent one, or null — see § Recovery plans |
+| POST | `/api/recovery-cases/:id/evaluate` | rate-limited; runs root cause + eligibility + scoring + intervention + policy; re-entrant/idempotent (a decided case is a no-op 200) |
+| POST | `/api/recovery-cases/:id/simulate-action` | rate-limited; the seeded-PRNG simulated executor (`status: SIMULATED`); never calls Razorpay; internal/test tooling (no judge-facing button) |
+| POST | `/api/recovery-cases/:id/payment-link` | rate-limited; the Payment Link safety checklist, then a real Razorpay Test Mode call — see § Razorpay integration |
+| POST | `/api/recovery-cases/:id/voice/session` \| `.../voice/turn` \| `.../voice/session/end` | rate-limited; the voice session lifecycle — body of `/turn` is `{sessionId, transcript}`; see `AGENT_DESIGN.md` § Voice pipeline |
+| GET | `/api/recovery-plan/current` | the merchant's open `PENDING_APPROVAL` plan, else the most recent, else null |
 | GET | `/api/recovery-plan/:id` | 404 if not found OR not owned by merchant |
-| POST | `/api/recovery-plan/:id/confirm` | rate-limited; the single merchant confirmation — revalidates + executes approved actions; idempotent |
-| POST | `/api/checkout-sessions/:id/simulate-abandonment` | demo trigger, rate-limited; invokes the exact same Revenue Risk Detector pipeline as real timeout-based detection — see § Checkout abandonment detection |
-| POST | `/api/evaluation/run` | rate-limited, likely admin/demo-only given cost/time |
-| GET | `/api/evaluation/:id` | evaluation run results |
-| GET | `/api/merchant/policy` / `PUT /api/merchant/policy` | read/update merchant policy config |
+| POST | `/api/recovery-plan/:id/confirm` | rate-limited; **the single merchant confirmation** — revalidates every item, executes approved actions; idempotent atomic status claim |
+| POST | `/api/evaluation/run` | rate-limited; body `{count?: 20–500 (default 100), seed?}`; in-memory batch over the production pipeline |
+| GET | `/api/evaluation` / `GET /api/evaluation/:id` | evaluation run list / results |
+| GET \| PUT | `/api/merchant/policy` | read / update merchant policy config |
 | GET | `/api/merchant/integration` | the merchant's Razorpay webhook URL + `hasWebhookSecret` (the signing secret itself is NOT in this response — masked only; provisioned on first read); rate-limited — see § Inbound payment-failure webhook |
 | POST | `/api/merchant/integration/reveal` | returns the literal signing secret to the authenticated owning merchant only, on an explicit request; identity is the session, never the body; not logged; rate-limited |
 | POST | `/api/merchant/integration/regenerate` | rotates the webhookId + signing secret; the old URL stops resolving immediately; the new secret is obtained via `/reveal`; rate-limited |
@@ -266,32 +280,31 @@ Error responses are uniform:
 No stack traces in any environment-facing response; stack traces are logged server-side only,
 keyed by `requestId`.
 
-## Checkout abandonment detection
+## Checkout abandonment detection (Scenario B — designed, NOT wired in this build)
 
-Two triggers, one pipeline. There is no separate code path for "real" vs. "demo" abandonment —
-only two different ways of invoking the same Revenue Risk Detector (module 1):
+> **Status:** `models/CheckoutSession.js` exists, but there is **no `/api/checkout-sessions`
+> route, no abandonment sweep, and no interval** in the shipped code. Nothing in this section
+> runs. Only Scenario A (failed payment) is live. This is the intended design for a later phase.
 
-1. **Real mechanism:** a `checkout_session` is created in `started` status when checkout begins.
-   A lightweight periodic in-process check (an interval, not a queue — consistent with
-   `CLAUDE.md` § non-negotiable constraints) scans for sessions still `started` past a
-   merchant-configurable `CHECKOUT_ABANDONMENT_TIMEOUT_MINUTES` (sensible default ~30 minutes)
-   with no corresponding successful payment, marks them `abandoned`, and invokes the Revenue Risk
-   Detector exactly as a `payment.failed` event does for Scenario A.
-2. **Demo trigger:** `POST /api/checkout-sessions/:id/simulate-abandonment` marks the session
-   `abandoned` immediately and calls the identical Revenue Risk Detector function — it does not
-   fabricate a `recovery_case` directly or take any shortcut around the pipeline. This exists so a
-   live demo or evaluator isn't forced to wait out a real timeout window; the resulting case,
-   audit trail, and downstream behavior are indistinguishable from the real path.
+Design intent — two triggers, one pipeline (the same Revenue Risk Detector, module 1):
 
-## Razorpay integration plan (implemented, Day 6)
+1. **Real mechanism (not built):** a `checkout_session` in `started` status past a
+   merchant-configurable `CHECKOUT_ABANDONMENT_TIMEOUT_MINUTES` (~30 min) with no successful
+   payment would be marked `abandoned` by a lightweight in-process interval and invoke the
+   Revenue Risk Detector exactly as `payment.failed` does for Scenario A.
+2. **Demo trigger (not built):** `POST /api/checkout-sessions/:id/simulate-abandonment` would
+   mark the session `abandoned` immediately and call the identical detector — no shortcut around
+   the pipeline.
 
-Built and tested (mocked Razorpay boundary — no real network call in any automated test). Two
-recovery paths coexist, deliberately kept distinct so the dashboard and audit trail never conflate
-them (`EVALUATION.md` § Honesty separation, applied here to live vs. simulated single-case
-recovery, not just batch evaluation):
+## Razorpay integration (implemented, Test Mode)
 
-- **Simulated recovery** — `POST /:id/simulate-action` (unchanged since Day 3) and the batch
-  evaluator. Never calls Razorpay; resolves an outcome via the seeded PRNG against the case's own
+Built, tested, and live (automated tests mock the Razorpay network boundary; production makes
+real Test Mode calls — verified end-to-end). Two recovery paths coexist, deliberately kept
+distinct so the dashboard and audit trail never conflate them (`EVALUATION.md` § Honesty
+separation, applied here to live vs. simulated single-case recovery, not just batch evaluation):
+
+- **Simulated recovery** — `POST /:id/simulate-action` and the batch evaluator. Never calls
+  Razorpay; resolves an outcome via the seeded PRNG against the case's own
   `recoveryProbability`. `recovery_actions.status` is `SIMULATED`.
 - **Razorpay Test Mode recovery** — `POST /:id/payment-link` and the voice turn handler when
   `selectedIntervention === CREATE_PAYMENT_LINK` and Razorpay is configured. Makes a real Razorpay
@@ -425,22 +438,29 @@ control uses.
 
 ## Deployment topology
 
-- **Frontend:** Vercel (static Vite build).
-- **Backend:** Render (or Railway/Fly — Render assumed as default), Node process, env vars
-  configured in the platform, not committed.
-- **Database:** MongoDB Atlas (free/shared tier sufficient for this scale).
-- HTTPS everywhere; CORS locked to `FRONTEND_URL`. See `SECURITY.md` for full detail.
-- Target: smallest possible end-to-end slice deployed early (Day 2–3), then iterated in place —
-  never a big-bang deploy on the last day.
+- **Frontend:** Vercel (static Vite build of `client/`). Custom domain **`payrevive.xyz`** with
+  HSTS. `client/vercel.json` rewrites `/((?!api/).*)` → `/index.html` so deep links and hard
+  refresh resolve to the SPA, while `/api/*` is left alone (the frontend calls the Render
+  backend cross-origin via `VITE_API_BASE_URL`, not a same-origin proxy).
+- **Backend:** Render, Node process, env vars configured in the platform, not committed.
+  `GET /api/health` reports `environment: "production"` and live DB connectivity.
+- **Database:** MongoDB Atlas (shared tier).
+- HTTPS everywhere; CORS locked to `CLIENT_URL` (a fixed allowlist, not reflected). `helmet`
+  CSP/HSTS/`X-Frame-Options`/`X-Content-Type-Options`/`Referrer-Policy`/COOP/CORP. See
+  `SECURITY.md` for full detail.
+- The frontend's mobile nav is a `lg:hidden` hamburger drawer covering all product routes;
+  desktop keeps the inline nav.
 
 ## Key architecture decisions and rationale
 
 - **Runtime AI provider is Google Gemini, exclusively**, via the official `@google/genai` SDK.
-  Claude Code is a development-time tool only. Every runtime AI call (the recovery
-  Decision/Planner, Voice Intent Classifier, optional explanation text) goes through the Gemini
-  API, and business logic depends on the `AIProvider` interface (`server/src/ai/provider.js`),
-  never on Gemini SDK objects directly — see `CLAUDE.md` § AI provider and `AGENT_DESIGN.md` §
-  Provider abstraction.
+  Claude Code is a development-time tool only. The one wired-live Gemini call is the Voice Intent
+  Classifier; the Decision/Planner module is built and tested but not on any route, and
+  decision-factor explanation text is deterministic (`pipeline/decisionRationale.js`). Business
+  logic depends on the `AIProvider` interface (`server/src/ai/provider.js`), never on Gemini SDK
+  objects directly, and any Gemini failure falls back to the deterministic keyword classifier —
+  see `CLAUDE.md` § AI provider and `AGENT_DESIGN.md` § Provider abstraction / § Deterministic
+  voice-intent fallback.
 - **No LLM tool-calling framework.** The "tools" named in the brief (`getRecoveryCase`,
   `createPaymentLink`, etc.) are implemented as plain backend service functions called by
   deterministic pipeline code, not as functions exposed to a live function-calling loop for the
@@ -465,14 +485,14 @@ control uses.
 - **Evaluation reuses production pipeline code**, not a separate re-implementation, and never
   calls the real Gemini API or real Razorpay/voice services — see `EVALUATION.md` § Batch
   evaluation engine.
-- **Checkout abandonment detection and its demo trigger share one code path** — see § Checkout
-  abandonment detection above.
+- **Scenario B (checkout abandonment) is designed as "two triggers, one pipeline"** but is not
+  wired in this build — see § Checkout abandonment detection above.
 - **The simulated and live Razorpay paths are one function with an additive parameter, not two
   implementations.** `pipeline/actionExecutor.js`'s `CREATE_PAYMENT_LINK` branch takes an optional
-  `live` flag; every pre-Day-6 caller (evaluation, `/simulate-action`, voice without Razorpay
-  configured) omits it and is unaffected. This is what keeps the simulated executor permanently
-  available and Razorpay-free — see § Razorpay integration plan (implemented, Day 6) — without
-  duplicating the state-machine logic between the two paths.
+  `live` flag; the simulated callers (evaluation, `/simulate-action`, voice without Razorpay
+  configured) omit it and are unaffected. This is what keeps the simulated executor permanently
+  available and Razorpay-free — see § Razorpay integration — without duplicating the
+  state-machine logic between the two paths.
 
 ## Recovery plans (approval-gated autonomy)
 
@@ -495,11 +515,14 @@ PAYMENT FAILED → DETECT → ANALYZE → ELIGIBILITY → POLICY → BUILD RECOV
   `requiresMerchantApproval`, and its own `status`
   (`PENDING/EXECUTED/ESCALATED/SKIPPED/REMOVED/FAILED`).
 - **PLAN** — `pipeline/recoveryPlan.js` `planRecoveryForCase()` runs on every failed payment
-  (gated by `RECOVERY_AUTOPLAN_ENABLED`, default on). It calls the **exact same**
-  `runEvaluationPipeline` the manual `/evaluate` route calls, persists the case + evaluate-phase
-  audit, then records the decision as a plan item and writes `RECOVERY_PLAN_CREATED`. It never
-  contacts a customer. Triggered from `POST /api/demo/payment-failure` right after
-  `REVENUE_RISK_DETECTED` — no polling loop, no background job.
+  (gated by `RECOVERY_AUTOPLAN_ENABLED`, default on), via the shared `ingestPaymentFailure`
+  path — no polling loop, no background job. It calls the **exact same** `runEvaluationPipeline`
+  the manual `/evaluate` route calls, persists the case + evaluate-phase audit, records the
+  decision as a plan item, and writes `RECOVERY_PLAN_CREATED`; it never contacts a customer.
+  Internally it is split into `preparePlanItem()` (per-case, no shared state — safe to run for
+  many cases concurrently) and `commitPlanItems()` (one write to the merchant's single
+  `RecoveryPlan` doc + one batched audit insert); the demo seed uses this split to plan its 10
+  failed cases in parallel. `planRecoveryForCase()`'s external contract is unchanged.
 - **CONFIRM** — `POST /api/recovery-plan/:id/confirm` → `confirmRecoveryPlan()`. Auth +
   merchant-ownership (404 for another merchant's plan). **Idempotent** via an atomic status
   claim (`PENDING_APPROVAL → EXECUTING`); every later/concurrent call returns the current plan
