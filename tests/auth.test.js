@@ -102,3 +102,30 @@ test("a token signed with the wrong secret is rejected", async () => {
   const body = await res.json();
   assert.equal(body.error.code, "INVALID_TOKEN");
 });
+
+// The contract the DemoEntry stale-token recovery relies on: a stored-but-dead token is
+// caught by GET /api/auth/me (401), and POST /api/auth/demo immediately mints a fresh token
+// that DOES authorize /me — so re-entering the demo always lands a working session, and an
+// expired token can never strand the user on /dashboard.
+for (const kind of ["expired", "garbage"]) {
+  test(`stale-token recovery: a ${kind} token fails /auth/me, then a fresh demo token works`, async () => {
+    const staleToken =
+      kind === "expired"
+        ? jwt.sign({ merchantId: "000000000000000000000000", isDemo: true }, TEST_JWT_SECRET, { expiresIn: "-1s" })
+        : "clearly.not.a.jwt";
+
+    const stale = await fetch(`${ctx.baseUrl}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${staleToken}` },
+    });
+    assert.equal(stale.status, 401, "the dead token must be rejected, not silently trusted");
+
+    const fresh = await fetch(`${ctx.baseUrl}/api/auth/demo`, { method: "POST" }).then((r) => r.json());
+    assert.ok(fresh.token && fresh.token !== staleToken);
+
+    const recovered = await fetch(`${ctx.baseUrl}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${fresh.token}` },
+    });
+    assert.equal(recovered.status, 200);
+    assert.equal((await recovered.json()).isDemo, true);
+  });
+}

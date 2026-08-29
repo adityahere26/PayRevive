@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, setToken, getToken } from "../api/client.js";
+import { api, setToken, getToken, clearToken } from "../api/client.js";
 import { Button } from "../components/ui/Button.jsx";
 import { FloatingCurrency } from "../components/floating/FloatingCurrency.jsx";
 import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
@@ -19,6 +19,9 @@ export default function DemoEntry() {
   async function handleEnterDemo() {
     setStatus("loading");
     setError(null);
+    // Never carry a previous session's token into a fresh demo entry — if auth below fails,
+    // storage is left clean rather than holding a token that can't reach the API.
+    clearToken();
     try {
       const { token } = await api.authDemo();
       setToken(token);
@@ -32,11 +35,23 @@ export default function DemoEntry() {
   useEffect(() => {
     if (startedRef.current) return; // guard StrictMode's double-invoke
     startedRef.current = true;
-    if (getToken()) {
-      navigate("/dashboard", { replace: true });
-      return;
-    }
-    handleEnterDemo();
+
+    (async () => {
+      // A stored token only proves a session once existed — never that it still works. Verify
+      // it against the auth endpoint (GET /auth/me, not a business route); on ANY failure
+      // (expired 401, invalid 401, offline) drop the stale token and mint a fresh demo
+      // session, so an expired session can't strand the user on /dashboard.
+      if (getToken()) {
+        try {
+          await api.me();
+          navigate("/dashboard", { replace: true });
+          return;
+        } catch {
+          clearToken();
+        }
+      }
+      await handleEnterDemo();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
