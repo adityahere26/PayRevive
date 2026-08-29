@@ -64,6 +64,12 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
 export const api = {
   health: () => request("/health"),
   authDemo: () => request("/auth/demo", { method: "POST" }),
+  // Every deliberate "Enter Demo" resets the shared demo merchant to the canonical
+  // 100 / 90 / 10 dataset (fresh PENDING_APPROVAL plan, nothing executed) via the official
+  // merchant-scoped endpoint (server/src/routes/demo.js POST /seed -> services/demoSeed.js).
+  // Called only from DemoEntry on the /demo route — never on a dashboard refresh or any
+  // other request — so a demo in progress is never reset out from under the user.
+  seedDemo: () => request("/demo/seed", { method: "POST" }),
   me: () => request("/auth/me"),
 
   dashboardSummary: () => request("/dashboard/summary"),

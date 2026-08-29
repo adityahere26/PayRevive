@@ -219,7 +219,7 @@ export default function RecoveryCaseDetail() {
       {recoveryCase.decisionRationale?.headline && (
         <RevealOnScroll delay={80}>
           <Card title="Why PayRevive decided this">
-            <p className="text-lg font-medium leading-snug text-brand-950">
+            <p className="break-words text-lg font-medium leading-snug text-brand-950">
               {recoveryCase.decisionRationale.headline}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -248,7 +248,7 @@ export default function RecoveryCaseDetail() {
                 {recoveryCase.decisionRationale.factors.map((f, i) => (
                   <li key={i} className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
                     <span className="text-sm font-medium text-brand-900 sm:w-56 sm:shrink-0">{f.label}</span>
-                    <span className="text-xs text-brand-500">{f.detail}</span>
+                    <span className="min-w-0 break-words text-xs text-brand-500">{f.detail}</span>
                   </li>
                 ))}
               </ul>
@@ -368,14 +368,14 @@ export default function RecoveryCaseDetail() {
                   >
                     {String(idx + 1).padStart(2, "0")}
                   </div>
-                  <div className="flex-1 pt-1">
+                  <div className="min-w-0 flex-1 pt-1">
                     <div className={`text-base font-semibold ${done ? "text-brand-950" : "text-brand-300"}`}>{step.label}</div>
                     {entry ? (
                       <div className="mt-1 text-xs text-brand-500">
                         {entry.result && (
-                          <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] text-brand-600">{entry.result}</span>
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] text-brand-600 break-all">{entry.result}</span>
                         )}
-                        {entry.reason && <span className="ml-1.5">{entry.reason}</span>}
+                        {entry.reason && <span className="ml-1.5 break-words">{entry.reason}</span>}
                         <span className="ml-1.5 text-brand-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
                       </div>
                     ) : (
@@ -406,10 +406,10 @@ export default function RecoveryCaseDetail() {
               <tbody className="divide-y divide-brand-900/8">
                 {auditLog.map((entry) => (
                   <tr key={entry._id} className="transition-colors hover:bg-brand-50">
-                    <td className="whitespace-nowrap px-6 py-2.5 text-brand-500">{new Date(entry.timestamp).toLocaleString()}</td>
-                    <td className="px-6 py-2.5 font-mono text-xs text-brand-700">{entry.eventType}</td>
-                    <td className="px-6 py-2.5 text-brand-500">{entry.reason || "—"}</td>
-                    <td className="px-6 py-2.5 text-brand-500">{entry.result || "—"}</td>
+                    <td className="whitespace-nowrap px-6 py-2.5 align-top text-brand-500">{new Date(entry.timestamp).toLocaleString()}</td>
+                    <td className="break-all px-6 py-2.5 align-top font-mono text-xs text-brand-700">{entry.eventType}</td>
+                    <td className="max-w-[22rem] break-words px-6 py-2.5 align-top text-brand-500">{entry.reason || "—"}</td>
+                    <td className="max-w-[16rem] break-words px-6 py-2.5 align-top text-brand-500">{entry.result || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -420,12 +420,12 @@ export default function RecoveryCaseDetail() {
           <div className="-mx-6 -mb-2 divide-y divide-brand-900/8 sm:hidden">
             {auditLog.map((entry) => (
               <div key={entry._id} className="px-6 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs text-brand-700">{entry.eventType}</span>
-                  <span className="text-[11px] text-brand-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 break-all font-mono text-xs text-brand-700">{entry.eventType}</span>
+                  <span className="shrink-0 text-[11px] text-brand-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
                 </div>
-                <div className="mt-1 text-xs text-brand-500">{entry.reason || "—"}</div>
-                {entry.result && <div className="mt-1 font-mono text-[11px] text-brand-600">{entry.result}</div>}
+                <div className="mt-1 break-words text-xs text-brand-500">{entry.reason || "—"}</div>
+                {entry.result && <div className="mt-1 break-words font-mono text-[11px] text-brand-600">{entry.result}</div>}
               </div>
             ))}
           </div>

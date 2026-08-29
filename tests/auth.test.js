@@ -103,10 +103,10 @@ test("a token signed with the wrong secret is rejected", async () => {
   assert.equal(body.error.code, "INVALID_TOKEN");
 });
 
-// The contract the DemoEntry stale-token recovery relies on: a stored-but-dead token is
-// caught by GET /api/auth/me (401), and POST /api/auth/demo immediately mints a fresh token
-// that DOES authorize /me — so re-entering the demo always lands a working session, and an
-// expired token can never strand the user on /dashboard.
+// The contract the DemoEntry flow relies on: every deliberate "Enter Demo" discards any
+// stored token and calls POST /api/auth/demo, which ALWAYS mints a fresh token that
+// authorizes /me — so an expired or garbage stored token can never strand the user on
+// /dashboard, no matter what was left in localStorage from a previous visit.
 for (const kind of ["expired", "garbage"]) {
   test(`stale-token recovery: a ${kind} token fails /auth/me, then a fresh demo token works`, async () => {
     const staleToken =

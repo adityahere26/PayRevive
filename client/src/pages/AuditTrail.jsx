@@ -58,7 +58,9 @@ function eventLabel(eventType) {
 function ResultCell({ result }) {
   if (!result) return <span className="text-slate-400">—</span>;
   if (STATUS_META[result]) return <StatusBadge status={result} size="sm" />;
-  return <span className="font-mono text-xs text-slate-600">{result}</span>;
+  // Some events (e.g. DECISION_EXPLAINED) carry a full-sentence rationale here — must wrap,
+  // never push the row wider than its column.
+  return <span className="block max-w-full break-words text-right font-mono text-xs text-slate-600">{result}</span>;
 }
 
 // Distinguishes a real Razorpay Test Mode action from a demo/simulated one, straight from the
@@ -85,15 +87,15 @@ function TimelineRow({ entry }) {
             <SourceTag metadata={entry.metadata} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-            <span>{humanize(entry.reason) || entry.reason || "No reason recorded"}</span>
+            <span className="min-w-0 break-words">{humanize(entry.reason) || entry.reason || "No reason recorded"}</span>
             {entry.caseId && (
-              <Link to={`/recovery-cases/${entry.caseId}`} className="font-mono text-[11px] text-slate-400 hover:text-brand-700 hover:underline">
+              <Link to={`/recovery-cases/${entry.caseId}`} className="break-all font-mono text-[11px] text-slate-400 hover:text-brand-700 hover:underline">
                 {entry.caseId}
               </Link>
             )}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <div className="flex min-w-0 flex-col items-end gap-1.5 sm:max-w-[52%]">
           <ResultCell result={entry.result} />
           <span className="label-mono text-[10px] text-slate-400">
             {new Date(entry.timestamp).toLocaleString()}
