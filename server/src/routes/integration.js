@@ -20,9 +20,14 @@ export const integrationRouter = Router();
 
 integrationRouter.use(requireAuth);
 
+// Per-IP cap on this merchant-scoped, authenticated settings surface (view URL / reveal own
+// secret / rotate). It's DoS/abuse bounding, not anti-brute-force: /reveal only ever returns
+// the *caller's own* secret, so there is nothing across-tenant to guess. Kept generous enough
+// that a merchant clicking through setup — and the provision→reveal→rotate→verify test path —
+// never trips it.
 const integrationRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 100,
   message: "Too many integration requests. Please try again shortly.",
 });
 
@@ -42,22 +47,27 @@ function inboundWebhookUrl(req, webhookId) {
   return `${proto}://${req.get("host")}/api/webhooks/razorpay/inbound/${webhookId}`;
 }
 
+// The real signing secret is NEVER placed in a serialized response — not GET, not regenerate.
+// `webhookSecret` here is a fixed-length mask (never the real length either); the literal value
+// is available only via POST /reveal, on an explicit authenticated request.
+const SECRET_MASK = "•".repeat(16);
+
 function serialize(req, merchant) {
   const rz = merchant.integration?.razorpay || {};
   return {
     webhookId: rz.webhookId,
     webhookUrl: rz.webhookId ? inboundWebhookUrl(req, rz.webhookId) : null,
-    webhookSecret: rz.webhookSecret,
+    hasWebhookSecret: Boolean(rz.webhookSecret),
+    webhookSecret: rz.webhookSecret ? SECRET_MASK : null,
     provisionedAt: rz.provisionedAt || null,
     rotatedAt: rz.rotatedAt || null,
     events: INBOUND_EVENTS,
   };
 }
 
-// GET /api/merchant/integration — the merchant's Razorpay webhook endpoint + signing secret,
-// provisioned on first access. The secret is returned in full: the caller is the authenticated
-// owning merchant and needs the literal value to paste into Razorpay; the Integration page
-// masks it behind a reveal toggle.
+// GET /api/merchant/integration — the merchant's Razorpay webhook endpoint, provisioned on
+// first access. The signing secret is NOT returned here (only `hasWebhookSecret` + a mask); the
+// owning merchant fetches the literal value with POST /reveal when they intentionally ask.
 integrationRouter.get("/", integrationRateLimiter, async (req, res, next) => {
   try {
     const merchant = await Merchant.findById(req.merchant.id).select(
@@ -93,9 +103,41 @@ integrationRouter.get("/", integrationRateLimiter, async (req, res, next) => {
   }
 });
 
+// POST /api/merchant/integration/reveal — returns the literal signing secret, and ONLY to the
+// authenticated owning merchant, on an explicit request. Identity is taken from the session
+// (req.merchant.id set by requireAuth) — never from the request body — so merchant A can only
+// ever get merchant A's secret. The value is never in GET/regenerate responses and never
+// logged (the audit entry carries only the webhookId).
+integrationRouter.post("/reveal", integrationRateLimiter, async (req, res, next) => {
+  try {
+    const merchant = await Merchant.findById(req.merchant.id).select(
+      "+integration.razorpay.webhookSecret"
+    );
+    const secret = merchant?.integration?.razorpay?.webhookSecret;
+    if (!secret) {
+      next(new NotFoundError("No webhook secret provisioned"));
+      return;
+    }
+
+    await writeAuditLog({
+      merchantId: merchant._id,
+      actor: "MERCHANT",
+      eventType: "MERCHANT_WEBHOOK_SECRET_REVEALED",
+      reason: "razorpay",
+      result: "REVEALED",
+      metadata: { webhookId: merchant.integration.razorpay.webhookId },
+    });
+
+    res.status(200).json({ webhookSecret: secret });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/merchant/integration/regenerate — rotates BOTH the webhookId and the signing
 // secret. The old URL stops resolving immediately (routes/webhooks.js looks up by webhookId),
-// so the merchant must re-paste both values into Razorpay.
+// so the merchant must re-paste both values into Razorpay. The response is the same masked
+// shape as GET — the new secret is obtained via POST /reveal, like any other.
 integrationRouter.post("/regenerate", integrationRateLimiter, async (req, res, next) => {
   try {
     const merchant = await Merchant.findById(req.merchant.id).select(

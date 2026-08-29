@@ -13,38 +13,70 @@ import { SkeletonBlock } from "../components/ui/Skeleton.jsx";
 // "Simulate Payment Failure" control uses. No recovery/policy logic lives here — it only reads
 // and rotates the credential (server/src/routes/integration.js).
 
-function CopyField({ label, value, secret = false }) {
+// `value` is the plaintext for non-secret fields (the webhook URL). For the signing secret the
+// server sends only a mask, so the literal value is pulled on demand via `onReveal` (POST
+// /reveal) and held in local state only — never on initial load, and discarded on Hide.
+function CopyField({ label, value, secret = false, onReveal }) {
   const [revealed, setRevealed] = useState(!secret);
+  const [realValue, setRealValue] = useState(secret ? null : value);
+  const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  async function copy() {
+  async function resolveValue() {
+    if (realValue != null) return realValue;
+    if (!onReveal) return value;
+    const { webhookSecret } = await onReveal();
+    setRealValue(webhookSecret);
+    return webhookSecret;
+  }
+
+  async function toggleReveal() {
+    setError(null);
+    if (revealed) {
+      setRevealed(false);
+      if (secret) setRealValue(null); // discard locally on hide
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
+      await resolveValue();
+      setRevealed(true);
+    } catch (err) {
+      setError(err.message);
     }
   }
 
-  const shown = revealed ? value : "•".repeat(Math.min(44, (value || "").length));
+  async function copy() {
+    setError(null);
+    try {
+      const v = await resolveValue();
+      await navigator.clipboard.writeText(v);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      setCopied(false);
+      setError(err.message || "Copy failed");
+    }
+  }
+
+  const shown = revealed ? realValue ?? value ?? "—" : "•".repeat(16);
 
   return (
     <div>
       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-1 truncate rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[13px] text-brand-900">
-          {shown || "—"}
+          {shown}
         </code>
         {secret && (
-          <Button variant="tertiary" size="sm" onClick={() => setRevealed((r) => !r)}>
+          <Button variant="tertiary" size="sm" onClick={toggleReveal}>
             {revealed ? "Hide" : "Reveal"}
           </Button>
         )}
-        <Button variant="secondary" size="sm" onClick={copy} disabled={!value}>
+        <Button variant="secondary" size="sm" onClick={copy} disabled={!secret && !value}>
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
+      {error && <div className="mt-1 text-[11px] text-red-600">{error}</div>}
     </div>
   );
 }
@@ -140,7 +172,12 @@ export default function Integration() {
       >
         <div className="space-y-5">
           <CopyField label="Webhook URL" value={integration.webhookUrl} />
-          <CopyField label="Signing secret" value={integration.webhookSecret} secret />
+          <CopyField
+            key={integration.webhookId}
+            label="Signing secret"
+            secret
+            onReveal={api.revealWebhookSecret}
+          />
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span>Subscribe to:</span>
             {integration.events.map((e) => (

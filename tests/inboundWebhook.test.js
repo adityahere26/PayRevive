@@ -54,10 +54,23 @@ async function authedFetch(path, token, opts = {}) {
   });
 }
 
+// GET no longer returns the plaintext secret. These tests need the literal value to sign
+// webhook bodies, so the helper pulls it once via POST /reveal and attaches it under the same
+// `webhookSecret` key the rest of the file already uses.
 async function getIntegration(token) {
   const res = await authedFetch("/api/merchant/integration", token);
   const body = await res.json();
-  return { res, integration: body.integration };
+  const integration = body.integration;
+  if (integration && integration.hasWebhookSecret) {
+    integration.webhookSecret = await revealSecret(token);
+  }
+  return { res, integration };
+}
+
+async function revealSecret(token) {
+  const res = await authedFetch("/api/merchant/integration/reveal", token, { method: "POST" });
+  const body = await res.json();
+  return body.webhookSecret;
 }
 
 // A minimal, well-formed Razorpay `payment.failed` event.
@@ -109,20 +122,27 @@ async function deliver({ webhookId, secret, event, eventId, signature }) {
 
 // ---- 1. GET provisions a credential and is idempotent -------------------------------------
 
-test("1: GET /api/merchant/integration provisions a webhookId + secret and returns the same on repeat", async () => {
+test("1: GET /api/merchant/integration provisions a webhookId, masks the secret, and is stable on repeat", async () => {
   const { token, merchant } = await demoToken();
 
-  const { res, integration } = await getIntegration(token);
-  assert.equal(res.status, 200);
-  assert.match(integration.webhookId, /^wh_[0-9a-f]{24}$/);
-  assert.equal(integration.webhookSecret.length, 64);
-  assert.ok(integration.webhookUrl.endsWith(`/api/webhooks/razorpay/inbound/${integration.webhookId}`));
-  assert.deepEqual(integration.events, ["payment.failed"]);
-  assert.ok(integration.provisionedAt);
+  // Raw GET: webhook URL present, secret NOT in plaintext, existence flagged.
+  const rawRes = await authedFetch("/api/merchant/integration", token);
+  const raw = (await rawRes.json()).integration;
+  assert.equal(rawRes.status, 200);
+  assert.match(raw.webhookId, /^wh_[0-9a-f]{24}$/);
+  assert.ok(raw.webhookUrl.endsWith(`/api/webhooks/razorpay/inbound/${raw.webhookId}`));
+  assert.deepEqual(raw.events, ["payment.failed"]);
+  assert.ok(raw.provisionedAt);
+  assert.equal(raw.hasWebhookSecret, true);
+  assert.doesNotMatch(String(raw.webhookSecret ?? ""), /[0-9a-f]{32,}/i, "GET must not carry the plaintext secret");
 
-  const again = await getIntegration(token);
-  assert.equal(again.integration.webhookId, integration.webhookId);
-  assert.equal(again.integration.webhookSecret, integration.webhookSecret);
+  // The literal value comes only from POST /reveal, is 64 hex chars, and is stable.
+  const secret = await revealSecret(token);
+  assert.match(secret, /^[0-9a-f]{64}$/);
+  assert.equal(await revealSecret(token), secret);
+
+  const again = await authedFetch("/api/merchant/integration", token).then((r) => r.json());
+  assert.equal(again.integration.webhookId, raw.webhookId);
 
   const { AuditLog } = ctx.models;
   const provisioned = await AuditLog.find({ merchantId: merchant.id, eventType: "MERCHANT_WEBHOOK_PROVISIONED" });
@@ -139,8 +159,12 @@ test("2: POST /regenerate rotates webhookId + secret, audits it, and the old web
   const { integration: second } = await rotateRes.json();
   assert.equal(rotateRes.status, 200);
   assert.notEqual(second.webhookId, first.webhookId);
-  assert.notEqual(second.webhookSecret, first.webhookSecret);
+  assert.doesNotMatch(String(second.webhookSecret ?? ""), /[0-9a-f]{32,}/i, "regenerate must not carry the plaintext secret");
   assert.ok(second.rotatedAt);
+  // The new secret is obtained the same way as any other — via /reveal — and it has changed.
+  second.webhookSecret = await revealSecret(token);
+  assert.match(second.webhookSecret, /^[0-9a-f]{64}$/);
+  assert.notEqual(second.webhookSecret, first.webhookSecret);
 
   const { AuditLog } = ctx.models;
   const rot = await AuditLog.findOne({ merchantId: merchant.id, eventType: "MERCHANT_WEBHOOK_SECRET_ROTATED" });
@@ -380,11 +404,13 @@ test("10: a non-payment.failed event → 200 IGNORED, nothing created", async ()
 
 // ---- 11. the integration endpoints require auth -----------------------------------------
 
-test("11: /api/merchant/integration requires a bearer token", async () => {
+test("11: /api/merchant/integration (get, reveal, regenerate) all require a bearer token", async () => {
   const get = await fetch(`${ctx.baseUrl}/api/merchant/integration`);
   assert.equal(get.status, 401);
-  const post = await fetch(`${ctx.baseUrl}/api/merchant/integration/regenerate`, { method: "POST" });
-  assert.equal(post.status, 401);
+  const reveal = await fetch(`${ctx.baseUrl}/api/merchant/integration/reveal`, { method: "POST" });
+  assert.equal(reveal.status, 401);
+  const regen = await fetch(`${ctx.baseUrl}/api/merchant/integration/regenerate`, { method: "POST" });
+  assert.equal(regen.status, 401);
 });
 
 // ---- 12. the platform /razorpay webhook route is unchanged ------------------------------
@@ -398,4 +424,94 @@ test("12: the platform POST /api/webhooks/razorpay route still rejects a body wi
     body: JSON.stringify({ event: "payment_link.paid" }),
   });
   assert.equal(res.status, 400);
+});
+
+// ---- 13. POST /reveal — merchant isolation, rotation invalidates the old secret ----------
+
+test("13: reveal only ever yields the authenticated merchant's own secret", async () => {
+  const { token: tokenA, merchant: merchantA } = await demoToken();
+  await authedFetch("/api/merchant/integration", tokenA); // provision A (lazy on first GET)
+  const secretA = await revealSecret(tokenA);
+
+  const { Merchant } = ctx.models;
+  const merchantB = await Merchant.create({ email: "reveal-b@test.payrevive.dev", name: "Merchant B" });
+  const tokenB = signMerchantToken({ merchantId: merchantB._id.toString(), isDemo: false }, { expiresIn: "1h" });
+  await authedFetch("/api/merchant/integration", tokenB); // provision B
+  const secretB = await revealSecret(tokenB);
+
+  assert.match(secretA, /^[0-9a-f]{64}$/);
+  assert.match(secretB, /^[0-9a-f]{64}$/);
+  assert.notEqual(secretA, secretB, "each merchant reveals only its own secret");
+
+  // B supplies A's merchantId in the body — it is ignored; identity is the session, so B still
+  // gets B's secret and never A's.
+  const res = await authedFetch("/api/merchant/integration/reveal", tokenB, {
+    method: "POST",
+    body: JSON.stringify({ merchantId: String(merchantA.id) }),
+  });
+  const body = await res.json();
+  assert.equal(body.webhookSecret, secretB);
+  assert.notEqual(body.webhookSecret, secretA);
+});
+
+test("14: after rotation the OLD secret no longer verifies, the NEW one does", async () => {
+  const { token } = await demoToken();
+  const { integration: before } = await getIntegration(token);
+  const oldSecret = before.webhookSecret;
+
+  await authedFetch("/api/merchant/integration/regenerate", token, { method: "POST" });
+  const { integration: after } = await getIntegration(token);
+
+  assert.notEqual(after.webhookSecret, oldSecret);
+
+  // old secret against the NEW endpoint → rejected
+  const stale = await deliver({
+    webhookId: after.webhookId,
+    secret: oldSecret,
+    event: paymentFailedEvent(),
+    eventId: "evt_stale_secret",
+  });
+  assert.equal(stale.res.status, 400);
+
+  // new secret against the NEW endpoint → accepted
+  const fresh = await deliver({
+    webhookId: after.webhookId,
+    secret: after.webhookSecret,
+    event: paymentFailedEvent({ email: "fresh@example.com" }),
+    eventId: "evt_fresh_secret",
+  });
+  assert.equal(fresh.res.status, 200);
+});
+
+test("15: the signing secret never reaches application logs", async () => {
+  const captured = [];
+  const origOut = process.stdout.write.bind(process.stdout);
+  const origErr = process.stderr.write.bind(process.stderr);
+  process.stdout.write = (chunk, ...rest) => { captured.push(String(chunk)); return origOut(chunk, ...rest); };
+  process.stderr.write = (chunk, ...rest) => { captured.push(String(chunk)); return origErr(chunk, ...rest); };
+
+  let secret;
+  try {
+    const { token } = await demoToken();
+    const { integration } = await getIntegration(token); // GET + reveal
+    secret = integration.webhookSecret;
+    await authedFetch("/api/merchant/integration/regenerate", token, { method: "POST" });
+    const rotated = await revealSecret(token);
+    // a good and a bad delivery, to exercise the logging paths
+    await deliver({ webhookId: integration.webhookId, secret, event: paymentFailedEvent(), eventId: "evt_log_stale" });
+    const { integration: now } = await getIntegration(token);
+    await deliver({ webhookId: now.webhookId, secret: rotated, event: paymentFailedEvent({ email: "log@example.com" }), eventId: "evt_log_ok" });
+  } finally {
+    process.stdout.write = origOut;
+    process.stderr.write = origErr;
+  }
+
+  const haystack = captured.join("");
+  assert.ok(secret && secret.length === 64);
+  assert.equal(haystack.includes(secret), false, "a 64-char signing secret appeared in stdout/stderr");
+
+  // and it is never persisted into an audit record either
+  const { AuditLog } = ctx.models;
+  const all = JSON.stringify(await AuditLog.find({}).lean());
+  assert.equal(all.includes(secret), false, "the signing secret appeared in an AuditLog document");
 });

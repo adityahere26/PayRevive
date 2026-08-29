@@ -253,8 +253,9 @@ resource route re-verifies `resource.merchantId === req.merchant.id` before retu
 | POST | `/api/evaluation/run` | rate-limited, likely admin/demo-only given cost/time |
 | GET | `/api/evaluation/:id` | evaluation run results |
 | GET | `/api/merchant/policy` / `PUT /api/merchant/policy` | read/update merchant policy config |
-| GET | `/api/merchant/integration` | the merchant's Razorpay webhook URL + signing secret (provisioned on first read); rate-limited — see § Inbound payment-failure webhook |
-| POST | `/api/merchant/integration/regenerate` | rotates the webhookId + signing secret; the old URL stops resolving immediately; rate-limited |
+| GET | `/api/merchant/integration` | the merchant's Razorpay webhook URL + `hasWebhookSecret` (the signing secret itself is NOT in this response — masked only; provisioned on first read); rate-limited — see § Inbound payment-failure webhook |
+| POST | `/api/merchant/integration/reveal` | returns the literal signing secret to the authenticated owning merchant only, on an explicit request; identity is the session, never the body; not logged; rate-limited |
+| POST | `/api/merchant/integration/regenerate` | rotates the webhookId + signing secret; the old URL stops resolving immediately; the new secret is obtained via `/reveal`; rate-limited |
 | POST | `/api/webhooks/razorpay` | no auth (signature-verified instead); raw body required; platform route — `payment_link.*` outcome events only |
 | POST | `/api/webhooks/razorpay/inbound/:webhookId` | no auth (per-merchant signing secret verified instead); raw body required; a connected merchant's `payment.failed` deliveries — see § Inbound payment-failure webhook |
 
@@ -396,7 +397,9 @@ control uses.
   hashed — verification must recompute the same digest Razorpay sent). Issued lazily on the
   first `GET /api/merchant/integration` and rotatable via
   `POST /api/merchant/integration/regenerate` (which also invalidates the old URL — the route
-  resolves the merchant by `webhookId`). A partial unique index on
+  resolves the merchant by `webhookId`). The literal secret is never in the GET/regenerate
+  responses (masked, with `hasWebhookSecret`); the owning merchant fetches it explicitly from
+  `POST /api/merchant/integration/reveal`. A partial unique index on
   `integration.razorpay.webhookId` (filtered to string values, since unconnected merchants carry
   a `null`) enforces global uniqueness.
 - **Route.** `POST /api/webhooks/razorpay/inbound/:webhookId` (`routes/webhooks.js`), on the

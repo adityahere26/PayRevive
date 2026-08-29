@@ -13,8 +13,9 @@ const { Schema } = mongoose;
 //
 // `webhookSecret` is a symmetric HMAC-SHA256 key: verification must recompute the same digest
 // Razorpay sent, so it is stored as-is (not hashed) and guarded with `select: false` — the
-// same posture as any config credential. It is only ever returned to the authenticated owning
-// merchant on GET /api/merchant/integration.
+// same posture as any config credential. It is never in GET /api/merchant/integration (which
+// returns only `hasWebhookSecret` + a mask); the authenticated owning merchant fetches the
+// literal value from POST /api/merchant/integration/reveal on an explicit request.
 const razorpayIntegrationSchema = new Schema(
   {
     webhookId: { type: String, default: null }, // public, appears in the webhook URL

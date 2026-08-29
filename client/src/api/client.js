@@ -121,6 +121,9 @@ export const api = {
   // ARCHITECTURE.md § Inbound payment-failure webhook. The webhook URL + signing secret a
   // business pastes into their Razorpay Dashboard to connect PayRevive without writing code.
   getIntegration: () => request("/merchant/integration"),
+  // The signing secret is not in getIntegration/regenerate responses — fetched only on an
+  // explicit merchant "Reveal" (server/src/routes/integration.js POST /reveal).
+  revealWebhookSecret: () => request("/merchant/integration/reveal", { method: "POST" }),
   regenerateWebhookSecret: () => request("/merchant/integration/regenerate", { method: "POST" }),
 
   // AGENT_DESIGN.md § Voice pipeline. Every call here goes to the payrevive backend, never
