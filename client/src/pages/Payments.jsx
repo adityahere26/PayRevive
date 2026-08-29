@@ -99,12 +99,14 @@ function autoActionCaption(recoveryCase) {
       return null;
   }
 }
+// Decorative only (aria-hidden). Kept to the right / lower edges so they never sit under the
+// left-aligned eyebrow + headline, and hidden below `sm` where the copy spans the full width.
 const CURRENCY_MOTIFS = [
-  { symbol: "₹", className: "text-brand-300/70 text-4xl", style: { top: "8%", left: "3%" } },
-  { symbol: "₹", className: "text-mint-300/60 text-2xl", style: { bottom: "12%", right: "6%" } },
-  { symbol: "$", className: "text-slate-300/50 text-xl", style: { top: "58%", left: "12%" } },
-  { symbol: "€", className: "text-slate-300/40 text-lg", style: { top: "20%", right: "18%" } },
-  { symbol: "£", className: "text-slate-300/40 text-lg", style: { bottom: "22%", left: "22%" } },
+  { symbol: "₹", className: "hidden text-brand-300/50 text-4xl lg:block", style: { top: "14%", right: "7%" } },
+  { symbol: "₹", className: "hidden text-mint-300/50 text-2xl sm:block", style: { bottom: "18%", right: "12%" } },
+  { symbol: "$", className: "hidden text-slate-300/40 text-xl sm:block", style: { bottom: "12%", right: "32%" } },
+  { symbol: "€", className: "hidden text-slate-300/30 text-lg lg:block", style: { top: "48%", right: "22%" } },
+  { symbol: "£", className: "hidden text-slate-300/30 text-base sm:block", style: { top: "24%", right: "4%" } },
 ];
 
 const EMPTY_ARRAY = [];
@@ -245,6 +247,8 @@ function RecoveryPlanPanel({ plan, awaitingOutcome = 0, recovered = 0, isDemoMer
           <div className="mt-1 text-sm font-semibold text-brand-950">
             {pending
               ? "PayRevive has prepared a recovery plan."
+              : done
+              ? "PayRevive has executed the approved plan."
               : "PayRevive is working through the approved plan."}
           </div>
           <div className="mt-1 text-xs text-slate-500">

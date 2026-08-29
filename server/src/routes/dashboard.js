@@ -137,7 +137,13 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit),
-        RecoveryPlan.findOne({ merchantId, status: "PENDING_APPROVAL" }),
+        // The merchant's CURRENT plan: the open one awaiting confirmation if there is one,
+        // otherwise the most recent plan — so after confirmation the panel keeps showing
+        // execution progress and the demo test-payment control instead of collapsing to the
+        // "automation ready" placeholder. Same selection rule as GET /api/recovery-plan/current.
+        RecoveryPlan.findOne({ merchantId, status: "PENDING_APPROVAL" }).then(
+          (p) => p || RecoveryPlan.findOne({ merchantId }).sort({ createdAt: -1 })
+        ),
       ]);
 
     const customerIds = failedPaymentDocs.map((p) => p.customerId);
@@ -206,8 +212,9 @@ dashboardRouter.get("/payments-overview", async (req, res, next) => {
       failedPayments,
       totalFailedPayments,
       recoverySummary,
-      // The one prepared recovery plan awaiting the merchant's single confirmation (or null).
-      // Customer-facing actions have NOT run yet — see ARCHITECTURE.md § Recovery plans.
+      // The merchant's current recovery plan (or null if none has ever been prepared). While
+      // PENDING_APPROVAL, no customer-facing action has run — see ARCHITECTURE.md § Recovery
+      // plans; once EXECUTING/terminal, item.status / executedAt reflect what actually ran.
       recoveryPlan: serializePlan(activePlan),
       autoplanEnabled: env.RECOVERY_AUTOPLAN_ENABLED,
       page,

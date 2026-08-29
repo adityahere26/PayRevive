@@ -463,3 +463,30 @@ test("12: another merchant can neither see nor confirm this merchant's recovery 
   assert.equal(stillPending.status, "PENDING_APPROVAL");
   assert.equal(String(stillPending.merchantId), String(merchant.id));
 });
+
+// ---- 13. the Payments panel keeps the plan after confirmation ---------------------
+// Regression: payments-overview used to return only the PENDING_APPROVAL plan, so once the
+// merchant confirmed, `recoveryPlan` went null and the client's panel (with the demo
+// "Complete test payment" control) collapsed to the "automation ready" placeholder.
+
+test("13: payments-overview still returns the plan (with executed item state) after confirmation", async () => {
+  const { token } = await demoToken();
+  razorpayHandler = linkSuccessHandler();
+  const body = await reportFailure(token, { amount: 2999 });
+
+  const before = await authedFetch("/api/dashboard/payments-overview", token).then((r) => r.json());
+  assert.equal(before.recoveryPlan.status, "PENDING_APPROVAL");
+  assert.ok(before.recoveryPlan.items.every((i) => i.status === "PENDING"));
+
+  await authedFetch(`/api/recovery-plan/${body.recoveryPlan.id}/confirm`, token, { method: "POST" });
+
+  const after = await authedFetch("/api/dashboard/payments-overview", token).then((r) => r.json());
+  assert.ok(after.recoveryPlan, "plan is still present after confirmation, not null");
+  assert.ok(
+    ["EXECUTING", "COMPLETED", "PARTIAL"].includes(after.recoveryPlan.status),
+    `plan reflects execution, got ${after.recoveryPlan.status}`
+  );
+  const cf = after.recoveryPlan.items.filter((i) => i.customerFacing);
+  assert.ok(cf.length > 0 && cf.every((i) => i.status === "EXECUTED"), "customer-facing items show EXECUTED, not PENDING");
+  assert.ok(cf.every((i) => i.executedAt), "executed items carry executedAt");
+});

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, setToken } from "../api/client.js";
+import { api, setToken, getToken } from "../api/client.js";
 import { Button } from "../components/ui/Button.jsx";
 import { FloatingCurrency } from "../components/floating/FloatingCurrency.jsx";
 import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
@@ -10,8 +10,11 @@ import { RevealOnScroll } from "../components/motion/RevealOnScroll.jsx";
 // demo-merchant JWT (api.authDemo) so every downstream route stays merchant-scoped.
 export default function DemoEntry() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState("idle"); // idle | loading | error
+  // Starts in "loading": the single deliberate click happens on the landing page's "Enter
+  // Demo", which navigates here; this screen then authenticates on its own — no second press.
+  const [status, setStatus] = useState("loading"); // loading | error
   const [error, setError] = useState(null);
+  const startedRef = useRef(false);
 
   async function handleEnterDemo() {
     setStatus("loading");
@@ -19,14 +22,23 @@ export default function DemoEntry() {
     try {
       const { token } = await api.authDemo();
       setToken(token);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setStatus("error");
       setError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    if (startedRef.current) return; // guard StrictMode's double-invoke
+    startedRef.current = true;
+    if (getToken()) {
+      navigate("/dashboard", { replace: true });
       return;
     }
-    setStatus("idle");
-  }
+    handleEnterDemo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="gradient-atmosphere glow-field relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16">
@@ -50,7 +62,7 @@ export default function DemoEntry() {
         </p>
 
         <Button onClick={handleEnterDemo} disabled={status === "loading"} className="mt-9 w-full" size="lg">
-          {status === "loading" ? "Entering demo…" : "Enter Demo"}
+          {status === "loading" ? "Entering demo…" : "Try again"}
         </Button>
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
